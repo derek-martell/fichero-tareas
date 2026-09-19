@@ -1,0 +1,4469 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#28497C">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="shim.js"></script>
+<title>Fichero de Tareas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+:root{
+  --ground:#EDF0F4;
+  --surface:#FFFFFF;
+  --surface-2:#F6F8FA;
+  --ink:#18202B;
+  --muted:#616C7C;
+  --faint:#8A94A3;
+  --line:#DCE1E8;
+  --line-strong:#C3CBD6;
+  --accent:#28497C;
+  --accent-soft:#E3EAF5;
+  --danger:#B23A2E;
+  --danger-soft:#F7E6E3;
+  --warn:#96601F;
+  --warn-soft:#F8EEDF;
+  --done:#3F6B4E;
+  --shadow:0 1px 2px rgba(24,32,43,.06), 0 4px 12px rgba(24,32,43,.05);
+  --shadow-lift:0 2px 4px rgba(24,32,43,.10), 0 12px 28px rgba(24,32,43,.12);
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#12161D;
+    --surface:#1B212B;
+    --surface-2:#222A35;
+    --ink:#E7EBF1;
+    --muted:#9AA5B4;
+    --faint:#77828F;
+    --line:#2C3542;
+    --line-strong:#3C4756;
+    --accent:#8FB2E4;
+    --accent-soft:#23303F;
+    --danger:#E88C80;
+    --danger-soft:#3A2725;
+    --warn:#D8A85E;
+    --warn-soft:#332B1E;
+    --done:#7FB491;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.5), 0 12px 28px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#12161D;
+  --surface:#1B212B;
+  --surface-2:#222A35;
+  --ink:#E7EBF1;
+  --muted:#9AA5B4;
+  --faint:#77828F;
+  --line:#2C3542;
+  --line-strong:#3C4756;
+  --accent:#8FB2E4;
+  --accent-soft:#23303F;
+  --danger:#E88C80;
+  --danger-soft:#3A2725;
+  --warn:#D8A85E;
+  --warn-soft:#332B1E;
+  --done:#7FB491;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.5), 0 12px 28px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:24px 56px}
+
+/* ---------- cabecera ---------- */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}
+.brand h1{
+  font-family:Archivo, system-ui, sans-serif;
+  font-weight:700;font-size:26px;letter-spacing:-.02em;margin:0;text-wrap:balance;
+}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent;transition:background .13s,border-color .13s,transform .06s}
+button:active{transform:translateY(1px)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{background:var(--surface);color:var(--ink);border-color:var(--line-strong);padding:8px 13px;font-size:13.5px;font-weight:500}
+.btn:hover{background:var(--surface-2)}
+.btn-primary{background:var(--accent);color:var(--surface);border-color:var(--accent);padding:8px 15px;font-size:13.5px;font-weight:600}
+:root[data-theme="dark"] .btn-primary,
+:root:not([data-theme="light"]) .btn-primary{color:var(--ground)}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn-primary{color:#fff}}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 9px;font-size:13px}
+.btn-ghost:hover{background:var(--surface);color:var(--ink)}
+
+/* ---------- agenda del día ---------- */
+.hoy{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
+     box-shadow:var(--shadow);padding:12px 14px;margin-bottom:16px}
+.hoy-cab{display:flex;align-items:baseline;gap:10px;margin-bottom:9px}
+.hoy-cab #cfg-agenda{font-size:12px}
+.hoy-cab .hoy-est{margin-left:auto}
+.nav-dia{background:transparent;border:1px solid var(--line);color:var(--muted);
+         width:22px;height:22px;border-radius:6px;font-size:13px;line-height:1;padding:0;flex:none}
+.nav-dia:hover{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+#dia-hoy{font-size:11.5px;padding:3px 8px}
+.vistas{display:inline-flex;gap:2px;background:var(--surface-2);border:1px solid var(--line);
+        border-radius:7px;padding:2px;flex:none}
+.vistas button{background:transparent;border:0;border-radius:5px;font-size:11.5px;padding:3px 9px;
+               color:var(--muted);font-weight:500}
+.vistas button:hover{color:var(--ink)}
+.vistas button[aria-pressed="true"]{background:var(--surface);color:var(--accent);
+                                    box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+/* ---------- vista semana ---------- */
+.sem{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:11px}
+.sem-col{border:1px solid var(--line);border-radius:8px;padding:6px 5px;min-height:90px;
+         background:var(--surface-2);display:flex;flex-direction:column;gap:3px;min-width:0;
+         cursor:pointer;transition:border-color .12s,background .12s}
+.sem-col:hover{border-color:var(--accent);background:var(--surface)}
+.sem-col:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sem-col:hover .sem-cab{color:var(--accent)}
+.sem-col.hoy-col{border-color:var(--accent);background:var(--accent-soft)}
+.sem-cab{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
+         display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-bottom:2px}
+.sem-cab b{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink);font-weight:600}
+.sem-col.hoy-col .sem-cab b{color:var(--accent)}
+.sem-ev{font-size:10.5px;line-height:1.3;padding:3px 5px;border-radius:4px;background:var(--surface);
+        border:1px solid var(--line);color:var(--ink);text-align:left;width:100%;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.sem-ev:hover{border-color:var(--accent)}
+.sem-ev em{font-style:normal;font-family:"IBM Plex Mono",monospace;color:var(--faint);
+           font-size:9.5px;display:block}
+.sem-ev.asisti{border-left:3px solid var(--done)}
+.sem-ev.falte{border-left:3px solid var(--danger)}
+.sem-ev.cancelado{border-left:3px solid var(--line-strong);opacity:.6}
+.sem-ev.pend{border-left:3px solid var(--warn)}
+.sem-vacio{font-size:10.5px;color:var(--faint);padding:2px 4px}
+@media (max-width:760px){
+  .sem{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sem-col{min-height:auto}
+}
+
+/* ---------- vista mes ---------- */
+.mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:11px}
+.mes-nom{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
+         text-align:center;padding-bottom:2px}
+.mes-dia{border:1px solid var(--line);border-radius:6px;padding:5px 4px;min-height:58px;
+         background:var(--surface-2);display:flex;flex-direction:column;gap:3px;text-align:left}
+.mes-dia:hover{border-color:var(--accent)}
+.mes-dia.fuera{opacity:.35}
+.mes-dia.hoy-col{border-color:var(--accent);background:var(--accent-soft)}
+.mes-dia .n{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink);
+            font-variant-numeric:tabular-nums}
+.mes-dia.hoy-col .n{color:var(--accent);font-weight:600}
+.mes-pts{display:flex;flex-wrap:wrap;gap:2px}
+.mes-pt{width:5px;height:5px;border-radius:50%;background:var(--line-strong)}
+.mes-pt.asisti{background:var(--done)}
+.mes-pt.falte{background:var(--danger)}
+.mes-pt.cancelado{background:var(--faint);opacity:.6}
+.mes-pt.pend{background:var(--warn)}
+.mes-dia .h{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--faint);margin-top:auto}
+.hoy-cab h2{font-family:Archivo,sans-serif;font-size:12px;font-weight:600;letter-spacing:.09em;
+            text-transform:uppercase;margin:0;color:var(--muted)}
+.hoy-est{font-size:12.5px;color:var(--faint);font-family:"IBM Plex Mono",monospace;
+         font-variant-numeric:tabular-nums}
+.hoy-cuerpo{display:flex;flex-direction:column;gap:9px}
+.hoy-linea{font-size:13.5px;color:var(--ink);line-height:1.45}
+.hoy-linea strong{font-weight:600}
+.hoy-linea.alerta{color:var(--warn)}
+.agenda-lista{display:flex;flex-direction:column;margin-top:11px;
+              border-top:1px solid var(--line)}
+.ev{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 2px;
+    border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev .h{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
+       font-variant-numeric:tabular-nums;flex:none;width:86px}
+.ev .t{flex:1 1 160px;min-width:0;font-size:13.5px;color:var(--ink);
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev .acc{display:flex;gap:5px;flex:none}
+.ev .acc button{font-size:11.5px;padding:4px 9px;border:1px solid var(--line-strong);
+                background:var(--surface);color:var(--muted);border-radius:6px;font-weight:500}
+.ev .acc button:hover{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.ev.pasado .h,.ev.pasado .t{opacity:.55}
+.ev.ahora{background:var(--accent-soft);border-radius:7px;padding-inline:8px;
+          border-bottom-color:transparent;margin-block:2px}
+.ev.ahora .h,.ev.ahora .t{color:var(--accent)}
+.ev.ahora .t{font-weight:600}
+.marca{font-size:11.5px;font-weight:500;padding:3px 9px;border-radius:6px;flex:none;
+       border:1px solid transparent}
+.marca.asisti{background:rgba(63,107,78,.13);color:var(--done)}
+.marca.falte{background:var(--danger-soft);color:var(--danger)}
+.marca.cancelado{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+.marca.tarea{background:var(--accent-soft);color:var(--accent)}
+.marca.pregunta{background:transparent;color:var(--accent);font-weight:600;padding-inline:0}
+.btn-nota{font-size:11.5px;padding:4px 9px;border:1px solid transparent;border-radius:6px;
+          background:var(--accent-soft);color:var(--accent);font-weight:500;text-decoration:none;
+          display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.btn-nota:hover{filter:brightness(.95)}
+.fin-antes input[type=time]{font-size:11.5px;padding:3px 6px;width:auto;border-radius:6px}
+.ev .curso-tag{font-size:11px;color:var(--faint);flex:none;max-width:120px;overflow:hidden;
+               text-overflow:ellipsis;white-space:nowrap}
+.ev .eng{background:transparent;border:0;color:var(--faint);font-size:12px;padding:3px 5px;
+         border-radius:5px;flex:none;line-height:1}
+.ev .eng:hover{background:var(--surface-2);color:var(--accent)}
+.ev .quitar{background:transparent;border:0;color:var(--faint);font-size:14px;
+            padding:2px 5px;border-radius:5px;line-height:1;flex:none}
+.ev .quitar:hover{background:var(--surface-2);color:var(--ink)}
+
+/* ---------- fichas olvidadas ---------- */
+.olvido{border:1px solid transparent;border-left:4px solid var(--warn);background:var(--warn-soft);
+        border-radius:var(--r);padding:11px 13px;margin-bottom:16px;font-size:13.5px;color:var(--warn)}
+.olvido h3{margin:0 0 4px;font-size:13.5px;font-weight:600;font-family:Archivo,sans-serif}
+.olvido p{margin:0 0 9px;line-height:1.45}
+.olvido-fila{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0;
+             border-top:1px solid rgba(150,96,31,.2)}
+.olvido-fila .qt{flex:1 1 200px;min-width:0;color:var(--ink);font-weight:500;
+                 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.olvido-fila .btn{font-size:12.5px;padding:5px 10px}
+
+/* ---------- cierre de una ficha que estaba en curso ---------- */
+.cierre{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);
+        border-radius:var(--r);padding:11px 13px;margin-bottom:16px;font-size:13.5px;
+        box-shadow:var(--shadow);display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cierre .txt{flex:1 1 240px;min-width:0;color:var(--ink);line-height:1.4}
+.cierre .txt b{font-weight:600}
+.cierre .txt span{color:var(--muted);display:block;font-size:12.5px}
+.cierre .btn{font-size:12.5px;padding:5px 11px}
+.cierre input[type=time]{font-size:12.5px;padding:5px 8px;width:auto;border-radius:6px}
+.cierre .x{background:transparent;border:0;color:var(--faint);font-size:15px;padding:2px 6px;
+           border-radius:5px;line-height:1}
+.cierre .x:hover{background:var(--surface-2);color:var(--ink)}
+
+/* ---------- menú desplegable ---------- */
+.menu-wrap{position:relative;display:inline-block}
+.menu{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:236px;
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;
+  box-shadow:var(--shadow-lift);padding:5px;display:flex;flex-direction:column
+}
+.menu button{
+  background:transparent;border:0;border-radius:7px;text-align:left;padding:8px 10px;
+  display:flex;flex-direction:column;gap:1px;color:var(--ink);font-size:13.5px;font-weight:500
+}
+.menu button:hover{background:var(--accent-soft)}
+.menu button small{color:var(--muted);font-size:11.5px;font-weight:400}
+.menu button:hover small{color:var(--muted)}
+
+/* ---------- resumen ---------- */
+.tally{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden;margin-bottom:16px}
+.tally button{
+  flex:1 1 130px;min-width:0;background:transparent;border:0;border-right:1px solid var(--line);
+  border-radius:0;padding:11px 14px;text-align:left;display:block
+}
+.tally button:last-child{border-right:0}
+.tally button:hover{background:var(--surface-2)}
+.tally button[aria-pressed="true"]{background:var(--accent-soft)}
+.tally .n{font-family:"IBM Plex Mono",monospace;font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;display:block;line-height:1.1}
+.tally .k{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:block;margin-top:3px}
+.tally .venc .n{color:var(--danger)}
+.tally .pronto .n{color:var(--warn)}
+
+/* ---------- ritmo (lectura, no filtro) ---------- */
+.pace{display:flex;flex-wrap:wrap;gap:0 26px;margin:-4px 0 16px;padding:0 2px}
+.pace div{display:flex;align-items:baseline;gap:7px;padding:6px 0}
+.pace .n{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink)}
+.pace .k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.pace .sep{width:1px;background:var(--line);padding:0;margin:8px 0}
+
+/* ---------- filtros ---------- */
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:18px;min-height:30px}
+.filters .lbl{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-right:2px}
+.chip{
+  background:var(--surface);border:1px solid var(--line);color:var(--muted);
+  padding:4px 11px 4px 9px;font-size:12.5px;border-radius:999px;
+  display:inline-flex;align-items:center;gap:6px;font-weight:500
+}
+.chip:hover{border-color:var(--line-strong);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--ground)}
+.chip .dot{width:8px;height:8px;border-radius:2px;flex:none}
+
+/* ---------- tablero ---------- */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch}
+.col{background:transparent;min-width:0;display:flex;flex-direction:column;border-radius:var(--r)}
+/* La columna entera acepta el suelte, no solo donde hay fichas. */
+.col.recibe{background:var(--accent-soft);outline:2px dashed var(--accent);outline-offset:4px}
+.col-head{display:flex;align-items:center;gap:8px;padding:0 4px 9px;border-bottom:2px solid var(--line-strong);margin-bottom:12px}
+.col-head h2{font-family:Archivo,sans-serif;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0;color:var(--ink)}
+.col-head .count{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.col-head .add{margin-left:auto}
+.col[data-col="hecho"] .col-head{border-bottom-color:var(--done)}
+.stack{display:flex;flex-direction:column;gap:9px;min-height:110px;flex:1 1 auto;
+       padding-bottom:12px;border-radius:var(--r)}
+
+/* ---------- ficha ---------- */
+.card{
+  background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line-strong);
+  border-radius:var(--r);box-shadow:var(--shadow);padding:11px 12px 10px;cursor:grab;position:relative
+}
+.card:hover{box-shadow:var(--shadow-lift)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card.dragging{opacity:.4}
+/* Soltar sobre el centro de otra ficha la convierte en subtarea suya. */
+.card.anidar{outline:2px solid var(--accent);outline-offset:2px;background:var(--accent-soft)}
+.card.anidar::after{content:"Soltar aquí para hacerla subtarea";position:absolute;left:0;right:0;
+  bottom:-2px;text-align:center;font-size:10.5px;color:var(--accent);font-weight:600;
+  background:var(--accent-soft);padding:2px;border-radius:0 0 var(--r) var(--r)}
+.card .title{font-weight:500;font-size:14.5px;line-height:1.35;overflow-wrap:anywhere;margin-bottom:7px}
+.card.is-done .title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tag{font-size:11.5px;font-weight:500;padding:2px 7px;border-radius:5px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.date{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:2px 7px;border-radius:5px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+.date.venc{background:var(--danger-soft);color:var(--danger);border-color:transparent;font-weight:500}
+.date.pronto{background:var(--warn-soft);color:var(--warn);border-color:transparent;font-weight:500}
+.dur{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:2px 7px;border-radius:5px;background:transparent;color:var(--faint);border:1px dashed var(--line-strong);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dur.corre{border-style:solid;border-color:transparent;background:var(--accent-soft);color:var(--accent);font-weight:500}
+.dur.cerrado{border-style:solid;border-color:transparent;background:var(--surface-2);color:var(--done)}
+.prio{font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:4px;padding:2px 4px}
+.prio i{width:7px;height:7px;border-radius:50%;display:block}
+.prio.alta i{background:var(--danger)} .prio.alta{color:var(--danger)}
+.prio.media i{background:var(--warn)}
+.prio.baja i{background:var(--faint)}
+/* ---------- subtareas ---------- */
+.avance{display:flex;align-items:center;gap:7px;margin-top:8px}
+.avance-barra{flex:1;height:4px;border-radius:3px;background:var(--line);overflow:hidden}
+.avance-barra i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.avance-n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);
+          font-variant-numeric:tabular-nums;flex:none}
+.desplegar{background:transparent;border:0;color:var(--muted);font-size:11.5px;font-weight:500;
+           padding:5px 0 0;display:flex;align-items:center;gap:5px}
+.desplegar:hover{color:var(--accent)}
+.desplegar .chev{font-size:9px;transition:transform .15s}
+.desplegar[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.subs{display:flex;flex-direction:column;margin-top:7px;border-top:1px solid var(--line);
+      padding-top:4px;gap:1px}
+.sub{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12.5px;min-width:0;
+     cursor:grab;border-radius:5px}
+.sub:active{cursor:grabbing}
+.sub .asa{flex:none;color:var(--line-strong);font-size:11px;line-height:1;letter-spacing:-1px;
+          width:9px;text-align:center;user-select:none}
+.sub:hover .asa{color:var(--faint)}
+.sub.arrastrando{opacity:.35}
+.subs.sobre{outline:2px dashed var(--accent);outline-offset:3px;border-radius:7px}
+.sub.destino{box-shadow:inset 0 2px 0 -1px var(--accent)}
+.sub .caja{width:13px;height:13px;border-radius:3px;border:1.5px solid var(--line-strong);
+           flex:none;background:transparent;padding:0;position:relative}
+.sub .caja:hover{border-color:var(--done)}
+.sub.lista .caja{background:var(--done);border-color:var(--done)}
+.sub.lista .caja::after{content:"✓";position:absolute;inset:0;color:#fff;font-size:9px;
+                        line-height:11px;text-align:center}
+.sub .st{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+         color:var(--ink)}
+.sub.lista .st{color:var(--faint);text-decoration:line-through}
+.sub .play{background:transparent;border:1px solid var(--line);color:var(--muted);
+           border-radius:5px;font-size:10.5px;padding:2px 7px;flex:none;font-weight:500}
+.sub .play:hover{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.sub.corre .play{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.sub .crono{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--faint);flex:none;
+            font-variant-numeric:tabular-nums}
+.sub-nueva{display:flex;gap:6px;margin-top:5px}
+.sub-nueva input{font-size:12.5px;padding:5px 8px;border-radius:6px}
+.sub-nueva button{font-size:12px;padding:5px 10px;border:1px solid var(--line-strong);
+                  background:var(--surface);color:var(--muted);border-radius:6px;flex:none}
+.sub-nueva button:hover{background:var(--accent-soft);color:var(--accent)}
+.padre-tag{font-size:11px;color:var(--faint);display:block;margin-bottom:3px;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.nudge{position:absolute;top:7px;right:7px;display:flex;gap:1px;opacity:0;transition:opacity .12s}
+.card:hover .nudge,.card:focus-within .nudge{opacity:1}
+.nudge button{background:var(--surface);border:1px solid var(--line);width:24px;height:24px;line-height:1;font-size:13px;color:var(--muted);padding:0;border-radius:6px}
+.nudge button:hover{background:var(--accent-soft);color:var(--accent)}
+.nudge button[disabled]{opacity:.3;cursor:default}
+
+/* ---------- vacío ---------- */
+.empty{
+  border:1px dashed var(--line-strong);border-radius:var(--r);padding:16px 14px;
+  color:var(--faint);font-size:13px;text-align:center;background:transparent
+}
+.blank{
+  grid-column:1/-1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:38px 26px;text-align:center;box-shadow:var(--shadow)
+}
+.blank h3{font-family:Archivo,sans-serif;font-size:19px;margin:0 0 8px;font-weight:600}
+.blank p{margin:0 auto 18px;color:var(--muted);max-width:46ch;font-size:14px}
+
+/* ---------- diálogo ---------- */
+dialog{
+  border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);
+  padding:0;box-shadow:var(--shadow-lift);width:min(460px,calc(100vw - 32px));max-width:100%
+}
+dialog::backdrop{background:rgba(12,17,24,.45)}
+.dlg-head{padding:16px 18px 0}
+.dlg-head h3{font-family:Archivo,sans-serif;font-size:17px;margin:0;font-weight:600}
+form.dlg{padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+input[type=text],input[type=date],select,textarea{
+  font:inherit;font-size:14px;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;width:100%
+}
+textarea{resize:vertical;min-height:60px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px}
+@media (max-width:520px){ .row3{grid-template-columns:1fr 1fr} }
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:400;padding:2px 0}
+.check input{width:auto;margin:0}
+
+/* ---------- bloque de calendario ---------- */
+.cal{border:1px solid var(--line);border-radius:9px;padding:10px 11px;background:var(--surface-2)}
+.cal-cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+.cal-lbl{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.cal-est{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint)}
+.cal-est.ok{color:var(--done)}
+.cal-est.desfase{color:var(--warn)}
+.cal-btns{display:flex;flex-wrap:wrap;gap:7px}
+.cal-btns .btn{font-size:12.5px;padding:6px 11px}
+a.cal-ver{text-decoration:none;display:inline-flex;align-items:center;color:var(--accent);border-color:var(--line-strong);background:var(--surface)}
+a.cal-ver:hover{background:var(--accent-soft)}
+.cal-quitar{color:var(--danger)}
+.cal-nota{margin:9px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.cal-nota.error{color:var(--danger)}
+.agenda{font-size:11.5px;padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent);border:1px solid transparent;font-weight:500;text-decoration:none;white-space:nowrap}
+a.agenda:hover{filter:brightness(.95)}
+.drive{font-size:11.5px;padding:2px 7px 2px 6px;border-radius:5px;background:var(--surface-2);
+       color:var(--muted);border:1px solid var(--line);font-weight:500;text-decoration:none;
+       display:inline-flex;align-items:center;gap:4px;max-width:150px;overflow:hidden}
+.drive span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a.drive:hover{border-color:var(--accent);color:var(--accent)}
+.drive.heredado{border-style:dashed}
+.drive-busca{display:flex;gap:7px;margin-top:9px}
+.drive-busca input{font-size:13px;padding:6px 9px}
+.drive-busca .btn{flex:none;font-size:12.5px;padding:6px 11px}
+.drive-res{display:flex;flex-direction:column;gap:1px;margin-top:7px}
+.drive-res button{background:transparent;border:0;border-radius:6px;text-align:left;padding:6px 8px;
+                  display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);min-width:0}
+.drive-res button:hover{background:var(--accent-soft)}
+.drive-res .ic{flex:none;font-size:12px;opacity:.8}
+.drive-res .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drive-res .tp{margin-left:auto;font-size:11px;color:var(--faint);flex:none}
+.dlg-foot{display:flex;align-items:center;gap:8px;padding-top:4px}
+.dlg-foot .spacer{margin-left:auto}
+.arranque{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted);
+          background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+          padding:9px 10px;line-height:1.35}
+.arranque.ok{color:var(--done);border-color:transparent;background:rgba(63,107,78,.10)}
+.arranque.tarde{color:var(--danger);background:var(--danger-soft);border-color:transparent}
+.arranque.justo{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.arranca{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:2px 7px;border-radius:5px;
+         background:var(--surface-2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.arranca.tarde{background:var(--danger-soft);color:var(--danger);border-color:transparent;font-weight:500}
+.arranca.justo{background:var(--warn-soft);color:var(--warn);border-color:transparent;font-weight:500}
+.historial{
+  margin:0;padding:9px 11px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.7;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:pre-line
+}
+.del{color:var(--danger);background:transparent;border-color:transparent;font-size:13px;padding:7px 10px}
+.del:hover{background:var(--danger-soft)}
+
+/* ---------- avisos ---------- */
+.bar{
+  border:1px solid var(--line);background:var(--surface);border-left:4px solid var(--warn);
+  border-radius:var(--r);padding:10px 13px;font-size:13px;color:var(--muted);margin-bottom:16px
+}
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);
+  background:var(--ink);color:var(--ground);padding:9px 16px;border-radius:999px;font-size:13.5px;
+  box-shadow:var(--shadow-lift);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:60
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- pie ---------- */
+.foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:var(--faint);font-size:12.5px;display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between;align-items:center}
+/* ---------- interruptor de registro ---------- */
+.registro{
+  display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+  border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--r);
+  background:var(--surface);padding:11px 13px;margin-bottom:16px;box-shadow:var(--shadow)
+}
+.registro:hover{background:var(--surface-2)}
+.registro input{margin:2px 0 0;width:auto;flex:none;accent-color:var(--accent)}
+.registro-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.registro-txt strong{font-size:13.5px;font-weight:600;color:var(--ink)}
+.registro-txt span{font-size:12.5px;color:var(--muted);line-height:1.4}
+.registro.pendiente{border-left-color:var(--warn);background:var(--warn-soft)}
+.registro.pendiente .registro-txt span{color:var(--warn)}
+.registro.activo{border-left-color:var(--done)}
+.bar a{color:var(--accent);font-weight:500}
+
+@media (max-width:820px){
+  .board{grid-template-columns:1fr}
+  .col{background:transparent}
+  .nudge{opacity:1}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Fichero de Tareas</h1>
+      <p id="sub">Cargando…</p>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="nueva">+ Nueva tarea</button>
+      <button class="btn" id="reunion" hidden>Agendar reunión</button>
+      <div class="menu-wrap">
+        <button class="btn" id="exportar" aria-haspopup="true" aria-expanded="false">Exportar ▾</button>
+        <div class="menu" id="menu-exp" hidden>
+          <button type="button" data-exp="pdf" id="exp-pdf">PDF<small>Para imprimir o enviar</small></button>
+          <button type="button" data-exp="xlsx" id="exp-xlsx">Excel<small>Todas las columnas y los tiempos</small></button>
+          <button type="button" data-exp="csv" id="exp-csv">CSV<small>Para abrir en Stata, R o Python</small></button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="aviso" hidden class="bar"></div>
+
+  <section class="hoy" id="hoy" hidden>
+    <div class="hoy-cab">
+      <button class="nav-dia" id="dia-ant" title="Día anterior">‹</button>
+      <h2 id="hoy-etq">Hoy</h2>
+      <button class="nav-dia" id="dia-sig" title="Día siguiente">›</button>
+      <button class="btn-ghost" id="dia-hoy" hidden>Volver a hoy</button>
+      <span class="vistas" role="group" aria-label="Vista de la agenda">
+        <button type="button" data-vista="dia" aria-pressed="true">Día</button>
+        <button type="button" data-vista="semana" aria-pressed="false">Semana</button>
+        <button type="button" data-vista="mes" aria-pressed="false">Mes</button>
+      </span>
+      <span class="hoy-est" id="hoy-est"></span>
+      <button class="btn-ghost" id="cfg-agenda">Ajustar</button>
+    </div>
+    <div class="hoy-cuerpo" id="hoy-cuerpo"></div>
+    <div class="agenda-lista" id="agenda-lista"></div>
+    <div id="agenda-grid"></div>
+  </section>
+
+  <div class="olvido" id="olvido" hidden></div>
+  <div class="cierre" id="cierre" hidden></div>
+
+  <nav class="tally" aria-label="Resumen">
+    <button id="t-todas" aria-pressed="true"><span class="n" id="n-todas">0</span><span class="k">Todas</span></button>
+    <button id="t-venc" class="venc" aria-pressed="false"><span class="n" id="n-venc">0</span><span class="k">Vencidas</span></button>
+    <button id="t-pronto" class="pronto" aria-pressed="false"><span class="n" id="n-pronto">0</span><span class="k">Próximos 7 días</span></button>
+    <button id="t-sinf" aria-pressed="false"><span class="n" id="n-sinf">0</span><span class="k">Sin fecha</span></button>
+  </nav>
+
+  <div class="pace" id="pace" hidden>
+    <div><span class="n" id="p-curso">0</span><span class="k">En curso ahora</span></div>
+    <div class="sep"></div>
+    <div><span class="n" id="p-semana">0</span><span class="k">Terminadas · 7 días</span></div>
+    <div class="sep"></div>
+    <div><span class="n" id="p-ciclo">—</span><span class="k">Tiempo medio en curso</span></div>
+  </div>
+
+  <label class="registro" id="sw-registro" hidden>
+    <input type="checkbox" id="chk-registro">
+    <span class="registro-txt">
+      <strong>Anotar mi tiempo en Google Calendar</strong>
+      <span id="registro-sub">Cada ficha que pases a En curso queda como un bloque en tu calendario, con su hora real.</span>
+    </span>
+  </label>
+
+  <div class="filters" id="filtros"></div>
+
+  <main class="board" id="board">
+    <section class="col" data-col="pendiente">
+      <div class="col-head"><h2>Por hacer</h2><span class="count" id="c-pendiente">0</span>
+        <button class="btn-ghost add" data-add="pendiente" title="Agregar a Por hacer">+</button></div>
+      <div class="stack" id="s-pendiente"></div>
+    </section>
+    <section class="col" data-col="curso">
+      <div class="col-head"><h2>En curso</h2><span class="count" id="c-curso">0</span>
+        <button class="btn-ghost add" data-add="curso" title="Agregar a En curso">+</button></div>
+      <div class="stack" id="s-curso"></div>
+    </section>
+    <section class="col" data-col="hecho">
+      <div class="col-head"><h2>Hecho</h2><span class="count" id="c-hecho">0</span>
+        <button class="btn-ghost add" data-add="hecho" title="Agregar a Hecho">+</button></div>
+      <div class="stack" id="s-hecho"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span id="estado-db">·</span>
+    <span>Arrastra las fichas entre columnas, o usa ‹ › para moverlas. Abre una ficha para agendarla en tu calendario.</span>
+  </footer>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg-head"><h3 id="dlg-titulo">Nueva tarea</h3></div>
+  <form class="dlg" method="dialog" id="form">
+    <div class="field">
+      <label for="f-titulo">Tarea</label>
+      <input type="text" id="f-titulo" required maxlength="220" autocomplete="off" placeholder="Qué hay que hacer">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="f-proy">Proyecto</label>
+        <input type="text" id="f-proy" list="proys" maxlength="60" autocomplete="off" placeholder="p. ej. CIPSA">
+        <datalist id="proys"></datalist>
+      </div>
+      <div class="field">
+        <label for="f-sub">Subproyecto</label>
+        <input type="text" id="f-sub" list="subproys" maxlength="60" autocomplete="off" placeholder="p. ej. Márgenes">
+        <datalist id="subproys"></datalist>
+      </div>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label for="f-fecha">Fecha límite</label>
+        <input type="date" id="f-fecha">
+      </div>
+      <div class="field">
+        <label for="f-hora">Hora</label>
+        <input type="time" id="f-hora" step="900">
+      </div>
+      <div class="field">
+        <label for="f-prio">Prioridad</label>
+        <select id="f-prio">
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+          <option value="baja">Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="f-est">Me tomará (horas)</label>
+        <input type="number" id="f-est" min="0" max="200" step="0.5" placeholder="p. ej. 4">
+      </div>
+      <div class="field">
+        <label>Tengo que empezar antes de</label>
+        <div class="arranque" id="f-arranque">Pon fecha y estimación</div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-estado">Columna</label>
+      <select id="f-estado">
+        <option value="pendiente">Por hacer</option>
+        <option value="curso">En curso</option>
+        <option value="hecho">Hecho</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-notas">Notas</label>
+      <textarea id="f-notas" maxlength="1200" placeholder="Opcional"></textarea>
+    </div>
+    <div class="cal" id="f-cal" hidden>
+      <div class="cal-cab"><span class="cal-lbl">Google Calendar</span><span class="cal-est" id="f-cal-est">Sin agendar</span></div>
+      <div class="cal-btns">
+        <button type="button" class="btn" id="f-agendar">Agendar vencimiento</button>
+        <a class="btn cal-ver" id="f-ver-evento" target="_blank" rel="noopener" hidden>Ver en el calendario</a>
+        <button type="button" class="btn cal-quitar" id="f-quitar" hidden>Quitar</button>
+      </div>
+      <p class="cal-nota" id="f-cal-nota" hidden></p>
+    </div>
+
+    <div class="row2" id="f-tiempo-wrap">
+      <div class="field" id="f-inicio-wrap" hidden>
+        <label for="f-inicio">Empecé a las</label>
+        <input type="time" id="f-inicio" step="300">
+      </div>
+      <div class="field" id="f-real-wrap" hidden>
+        <label for="f-real">Tiempo dedicado (horas)</label>
+        <input type="number" id="f-real" min="0" max="500" step="0.25" placeholder="0">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <p class="cal-nota" id="f-tiempo-nota" style="margin:0;padding-top:8px"></p>
+      </div>
+    </div>
+
+    <div class="cal" id="f-drive" hidden>
+      <div class="cal-cab"><span class="cal-lbl">Google Drive</span><span class="cal-est" id="f-drive-est">Sin enlazar</span></div>
+      <div class="cal-btns">
+        <a class="btn cal-ver" id="f-drive-ver" target="_blank" rel="noopener" hidden>Abrir en Drive</a>
+        <button type="button" class="btn" id="f-drive-buscar">Enlazar carpeta o archivo</button>
+        <button type="button" class="btn cal-quitar" id="f-drive-quitar" hidden>Quitar</button>
+      </div>
+      <div class="drive-busca" id="f-drive-busca" hidden>
+        <input type="text" id="f-drive-q" autocomplete="off" placeholder="Nombre de la carpeta, o pega el enlace">
+        <button type="button" class="btn" id="f-drive-go">Buscar</button>
+      </div>
+      <div class="drive-res" id="f-drive-res"></div>
+      <label class="check" id="f-drive-proy-wrap" hidden>
+        <input type="checkbox" id="f-drive-proy"> <span id="f-drive-proy-txt">Usar para todo el proyecto</span>
+      </label>
+      <p class="cal-nota" id="f-drive-nota" hidden></p>
+    </div>
+
+    <p class="historial" id="f-historial" hidden></p>
+    <div class="dlg-foot">
+      <button type="button" class="btn del" id="f-borrar" hidden>Eliminar</button>
+      <button type="button" class="btn" id="f-subs" hidden>Subtareas</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="f-cancelar">Cancelar</button>
+      <button type="submit" class="btn-primary" id="f-guardar">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-curso">
+  <div class="dlg-head"><h3 id="cu-titulo">Curso</h3></div>
+  <form class="dlg" method="dialog" id="form-curso">
+    <p class="cal-nota" style="margin:0">Se aplica a <strong>todas</strong> las sesiones con este mismo nombre, las pasadas y las que vengan.</p>
+    <div class="row2">
+      <div class="field">
+        <label for="cu-proy">Proyecto</label>
+        <input type="text" id="cu-proy" list="proys" maxlength="60" autocomplete="off" placeholder="p. ej. UNMSM">
+      </div>
+      <div class="field">
+        <label for="cu-sub">Subproyecto</label>
+        <input type="text" id="cu-sub" list="subproys" maxlength="60" autocomplete="off" placeholder="p. ej. Econometría III">
+      </div>
+    </div>
+    <div class="field">
+      <label>Carpeta de Drive para las notas de este curso</label>
+      <div class="cal" style="padding:9px 11px">
+        <div class="cal-cab" style="margin-bottom:6px">
+          <span class="cal-est" id="cu-carp-est">Usa la carpeta general</span>
+          <a class="btn cal-ver" id="cu-carp-ver" target="_blank" rel="noopener" hidden
+             style="margin-left:auto;font-size:12px;padding:4px 9px">Abrir</a>
+        </div>
+        <div class="drive-busca">
+          <input type="text" id="cu-carp-q" autocomplete="off" placeholder="Nombre de la carpeta, o pega el enlace">
+          <button type="button" class="btn" id="cu-carp-go">Buscar</button>
+        </div>
+        <div class="drive-res" id="cu-carp-res"></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn del" id="cu-limpiar">Quitar ajustes</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="cu-cancelar">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-cfg">
+  <div class="dlg-head"><h3>Qué eventos sigo</h3></div>
+  <form class="dlg" method="dialog" id="form-cfg">
+    <div class="field">
+      <label for="c-excluir">Ignorar los eventos cuyo título contenga</label>
+      <textarea id="c-excluir" placeholder="una palabra por línea"></textarea>
+    </div>
+    <div class="field">
+      <label>Carpeta de Drive donde están tus cursos</label>
+      <p class="cal-nota" style="margin:0 0 6px">Dentro de ella el tablero busca la carpeta de cada curso y, ahí dentro, su carpeta de notas o apuntes.</p>
+      <div class="cal" style="padding:9px 11px">
+        <div class="cal-cab" style="margin-bottom:6px">
+          <span class="cal-est" id="c-notas-est">Sin elegir</span>
+          <a class="btn cal-ver" id="c-notas-ver" target="_blank" rel="noopener" hidden
+             style="margin-left:auto;font-size:12px;padding:4px 9px">Abrir</a>
+        </div>
+        <div class="drive-busca">
+          <input type="text" id="c-notas-q" autocomplete="off" placeholder="Nombre de la carpeta, o pega el enlace">
+          <button type="button" class="btn" id="c-notas-go">Buscar</button>
+        </div>
+        <div class="drive-res" id="c-notas-res"></div>
+      </div>
+    </div>
+    <p class="cal-nota">Se ignoran mayúsculas y tildes. Tampoco se siguen los eventos que tu calendario marca como «disponible» ni los bloques de registro que crea este tablero.</p>
+    <div class="dlg-foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="c-cancelar">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-reu">
+  <div class="dlg-head"><h3>Agendar reunión</h3></div>
+  <form class="dlg" method="dialog" id="form-reu">
+    <div class="field">
+      <label for="r-titulo">Asunto</label>
+      <input type="text" id="r-titulo" required maxlength="200" autocomplete="off" placeholder="p. ej. Revisión de avances CIPSA">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="r-proy">Proyecto</label>
+        <input type="text" id="r-proy" list="proys" maxlength="60" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="r-sub">Subproyecto</label>
+        <input type="text" id="r-sub" list="subproys" maxlength="60" autocomplete="off">
+      </div>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label for="r-fecha">Día</label>
+        <input type="date" id="r-fecha" required>
+      </div>
+      <div class="field">
+        <label for="r-hora">Hora</label>
+        <input type="time" id="r-hora" required value="10:00" step="900">
+      </div>
+      <div class="field">
+        <label for="r-dur">Duración</label>
+        <select id="r-dur">
+          <option value="30">30 min</option>
+          <option value="60" selected>1 hora</option>
+          <option value="90">1 h 30</option>
+          <option value="120">2 horas</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="r-invitados">Invitados</label>
+      <input type="text" id="r-invitados" autocomplete="off" placeholder="correos separados por coma (opcional)">
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="r-meet" checked> Generar enlace de Google Meet</label>
+      <label class="check"><input type="checkbox" id="r-ficha" checked> Crear también una ficha en el tablero</label>
+    </div>
+    <p class="cal-nota" id="r-nota" hidden></p>
+    <div class="dlg-foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="r-cancelar">Cancelar</button>
+      <button type="submit" class="btn-primary" id="r-crear">Crear reunión</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var COLS = ["pendiente","curso","hecho"];
+  var NOMBRE_COL = {pendiente:"Por hacer", curso:"En curso", hecho:"Hecho"};
+  var NOMBRE_PRIO = {alta:"Alta", media:"Media", baja:"Baja"};
+  var PALETA = ["#28497C","#8A5B2E","#3F6B4E","#7A3B63","#2F6B77","#8C4A3A","#4C5A8A","#6B6330"];
+
+  var tareas = {};        // id -> tarea
+  var db = null;
+  var soloLocal = false;
+  var filtroProyecto = null;
+  var filtroSub = null;
+  var filtroVista = "todas";
+  var editando = null;
+  var mcp = null;
+  var registrarTiempo = false;
+  var TZ = (window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone) || "America/Lima";
+  var CAL = "Google Calendar";
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  // ---------- fechas ----------
+  function hoyISO(){
+    var d = new Date();
+    return d.toLocaleDateString("en-CA"); // AAAA-MM-DD en zona local
+  }
+  function diasHasta(iso){
+    if(!iso) return null;
+    var a = new Date(hoyISO()+"T00:00:00");
+    var b = new Date(iso+"T00:00:00");
+    if(isNaN(b)) return null;
+    return Math.round((b-a)/86400000);
+  }
+  function fechaCorta(iso){
+    var d = new Date(iso+"T00:00:00");
+    if(isNaN(d)) return iso;
+    var m = ["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"];
+    return d.getDate()+" "+m[d.getMonth()];
+  }
+  function duracion(ms){
+    if(!ms || ms < 0) return "0m";
+    var min = Math.floor(ms/60000);
+    if(min < 60) return min + "m";
+    var hrs = Math.floor(min/60);
+    if(hrs < 24) return hrs + "h";
+    var dias = Math.floor(hrs/24);
+    var resto = hrs % 24;
+    return resto ? dias + "d " + resto + "h" : dias + "d";
+  }
+  function msEnCurso(t){
+    return (t.msEnCurso||0) + (t.cursoDesde ? Date.now() - t.cursoDesde : 0);
+  }
+  function fechaHora(ms){
+    if(!ms) return "";
+    var d = new Date(ms);
+    var p = function(n){ return (n<10?"0":"") + n; };
+    return d.toLocaleDateString("en-CA") + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+  function etiquetaFecha(iso){
+    var n = diasHasta(iso);
+    if(n === null) return {txt:fechaCorta(iso), cls:""};
+    if(n < 0) return {txt:fechaCorta(iso)+" · "+Math.abs(n)+"d tarde", cls:"venc"};
+    if(n === 0) return {txt:"hoy", cls:"pronto"};
+    if(n === 1) return {txt:"mañana", cls:"pronto"};
+    if(n <= 7) return {txt:fechaCorta(iso)+" · "+n+"d", cls:"pronto"};
+    return {txt:fechaCorta(iso), cls:""};
+  }
+
+  // ---------- utilidades ----------
+  function nuevoId(){
+    return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+  function colorProyecto(nombre){
+    if(!nombre) return "var(--line-strong)";
+    var h = 0;
+    for(var i=0;i<nombre.length;i++){ h = (h*31 + nombre.charCodeAt(i)) >>> 0; }
+    return PALETA[h % PALETA.length];
+  }
+  function lista(){
+    return Object.keys(tareas).map(function(k){ return tareas[k]; });
+  }
+  function hijas(id){
+    return lista().filter(function(t){ return t.padre === id; }).sort(ordenar);
+  }
+  function esPadre(t){
+    return hijas(t.id).length > 0;
+  }
+  // El tiempo de una ficha con subtareas es la suma de las suyas.
+  function tiempoTotal(t){
+    var hs = hijas(t.id);
+    if(!hs.length) return msEnCurso(t);
+    return hs.reduce(function(a, h){ return a + msEnCurso(h); }, 0) + msEnCurso(t);
+  }
+  function proyectos(){
+    var set = {};
+    lista().forEach(function(t){ if(t.proyecto) set[t.proyecto] = true; });
+    return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,"es"); });
+  }
+  function subproyectosDe(proy){
+    var set = {};
+    lista().forEach(function(t){
+      if(t.subproyecto && (!proy || t.proyecto === proy)) set[t.subproyecto] = true;
+    });
+    return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,"es"); });
+  }
+  function toast(msg){
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("on");
+    clearTimeout(el._t);
+    el._t = setTimeout(function(){ el.classList.remove("on"); }, 2600);
+  }
+  function aviso(msg, href, textoEnlace){
+    var el = $("aviso");
+    if(!msg){ el.hidden = true; return; }
+    el.textContent = msg;
+    if(href){
+      el.appendChild(document.createTextNode(" "));
+      var a = document.createElement("a");
+      a.href = href; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = textoEnlace || "Abrir en el calendario";
+      el.appendChild(a);
+    }
+    el.hidden = false;
+  }
+
+  // ---------- persistencia ----------
+  function guardar(t){
+    tareas[t.id] = t;
+    render();
+    if(db){
+      db.collection("tareas").doc(t.id).set(t).catch(function(e){
+        manejarError(e, "No se pudo guardar “"+t.titulo+"”.");
+      });
+    }
+  }
+  function borrar(id){
+    var t = tareas[id];
+    if(t && t.avisoId && mcp){
+      mcp.callTool(CAL, "delete_event", {eventId: t.avisoId, notificationLevel: "NONE"})
+        .catch(function(){});
+    }
+    if(t && t.eventoId && mcp){
+      mcp.callTool(CAL, "delete_event", {
+        eventId: t.eventoId,
+        notificationLevel: t.meetUrl ? "ALL" : "NONE"
+      }).catch(function(){
+        toast("Borré la ficha, pero su evento sigue en el calendario.");
+      });
+    }
+    delete tareas[id];
+    render();
+    if(db){
+      db.collection("tareas").doc(id).delete().catch(function(e){
+        manejarError(e, "No se pudo eliminar la tarea.");
+      });
+    }
+    toast(t ? "Eliminada: "+recortar(t.titulo,32) : "Eliminada");
+  }
+  function recortar(s,n){ return s.length > n ? s.slice(0,n-1)+"…" : s; }
+
+  function manejarError(e, texto){
+    var code = e && e.code;
+    if(code === "quota_exceeded"){
+      toast("El fichero llegó a su tope de tareas. Elimina algunas para seguir agregando.");
+    } else if(code === "revoked" || code === "not_granted"){
+      soloLocal = true;
+      aviso("El fichero perdió el acceso a su almacén. Los cambios de ahora en adelante viven solo en esta pestaña: exporta a Excel antes de cerrarla.");
+    } else {
+      toast(texto || "No se pudo guardar el cambio.");
+    }
+  }
+
+  // ---------- filtros ----------
+  function pasaFiltro(t){
+    if(filtroProyecto && t.proyecto !== filtroProyecto) return false;
+    if(filtroSub && t.subproyecto !== filtroSub) return false;
+    if(filtroVista === "todas") return true;
+    var n = diasHasta(t.fecha);
+    if(filtroVista === "venc")  return t.estado !== "hecho" && n !== null && n < 0;
+    if(filtroVista === "pronto")return t.estado !== "hecho" && n !== null && n >= 0 && n <= 7;
+    if(filtroVista === "sinf")  return t.estado !== "hecho" && !t.fecha;
+    return true;
+  }
+
+  function contarVista(vista){
+    return lista().filter(function(t){
+      if(filtroProyecto && t.proyecto !== filtroProyecto) return false;
+      if(filtroSub && t.subproyecto !== filtroSub) return false;
+      if(vista === "todas") return true;
+      var n = diasHasta(t.fecha);
+      if(vista === "venc")  return t.estado !== "hecho" && n !== null && n < 0;
+      if(vista === "pronto")return t.estado !== "hecho" && n !== null && n >= 0 && n <= 7;
+      if(vista === "sinf")  return t.estado !== "hecho" && !t.fecha;
+      return true;
+    }).length;
+  }
+
+  // ---------- orden ----------
+  // ---------- subtareas ----------
+  var abiertas = {};       // qué fichas tienen sus subtareas desplegadas
+  var foco = null;         // ficha cuyo campo "nueva subtarea" debe recibir el cursor
+  var arrastrandoId = null; // qué ficha se está arrastrando ahora mismo
+
+  // Durante el dragover no se puede leer el id arrastrado, de ahí la variable.
+  function puedeAnidar(id, destinoId){
+    var a = tareas[id], b = tareas[destinoId];
+    if(!a || !b || id === destinoId) return false;
+    if(b.padre === id) return false;              // sería su propia subtarea
+    if(a.padre === destinoId) return false;       // ya cuelga de ahí
+    if(hijas(id).length) return false;            // no se anidan bloques enteros
+    return true;
+  }
+
+  function anidar(id, destinoId){
+    var t = tareas[id], d = tareas[destinoId];
+    if(!t || !d) return;
+    // Si se suelta sobre una subtarea, pasa a ser hermana suya.
+    var padreFinal = (d.padre && tareas[d.padre]) ? d.padre : destinoId;
+    if(padreFinal === id) return;
+    if(hijas(id).length){
+      toast("“" + recortar(t.titulo, 22) + "” ya tiene subtareas propias; sácalas antes.");
+      return;
+    }
+    var p = tareas[padreFinal];
+    var copia = Object.assign({}, t);
+    copia.padre = padreFinal;
+    copia.orden = ordenSiguienteHija(padreFinal);
+    if(!copia.proyecto && p.proyecto){
+      copia.proyecto = p.proyecto;
+      copia.subproyecto = p.subproyecto || "";
+    }
+    guardar(copia);
+    abiertas[padreFinal] = true;
+    toast("Ahora es subtarea de “" + recortar(p.titulo, 24) + "”");
+  }
+
+  function desanidar(id){
+    var t = tareas[id];
+    if(!t || !t.padre) return;
+    var antes = tareas[t.padre];
+    var copia = Object.assign({}, t);
+    copia.padre = "";
+    copia.orden = ordenSiguiente(copia.estado);
+    guardar(copia);
+    toast("Ya no depende de “" + recortar(antes ? antes.titulo : "", 24) + "”");
+  }
+
+  function ordenSiguienteHija(padreId){
+    var hs = hijas(padreId);
+    if(!hs.length) return 1000;
+    return Math.max.apply(null, hs.map(function(t){ return t.orden||0; })) + 10;
+  }
+
+  function nuevaSub(padreId, titulo){
+    var p = tareas[padreId];
+    if(!p) return;
+    guardar({
+      id: nuevoId(), creado: Date.now(), orden: ordenSiguienteHija(padreId),
+      completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
+      tramoId: "", tramoInicio: 0, tramoUltimo: 0, avisado: 0,
+      titulo: titulo, padre: padreId,
+      proyecto: p.proyecto || "", subproyecto: p.subproyecto || "",
+      fecha: "", prioridad: p.prioridad || "media", estado: "pendiente",
+      notas: "", eventoId: "", eventoLink: "", eventoFecha: "", meetUrl: ""
+    });
+    abiertas[padreId] = true;
+    foco = padreId;
+  }
+
+  function alternarSub(s){
+    var nuevo = s.estado === "hecho" ? "pendiente" : "hecho";
+    mover(s.id, nuevo, null);
+    if(nuevo === "hecho") setTimeout(function(){ cerrarPadreSiTodoListo(s.padre); }, 60);
+  }
+
+  // Cuando la última subtarea se marca hecha, la ficha grande se cierra sola.
+  function cerrarPadreSiTodoListo(padreId){
+    var p = tareas[padreId];
+    if(!p || p.estado === "hecho") return;
+    var hs = hijas(padreId);
+    if(!hs.length) return;
+    var faltan = hs.filter(function(x){ return x.estado !== "hecho"; }).length;
+    if(faltan) return;
+    mover(padreId, "hecho", null);
+    toast("Todas las subtareas listas: “" + recortar(p.titulo, 30) + "” pasó a Hecho");
+  }
+
+  // ---------- cuándo hay que empezar ----------
+  var HOLGURA = 2;            // el doble de lo estimado
+  var ACTIVO_INI = "06:00";   // antes de esta hora no se cuenta como tiempo disponible
+  var ACTIVO_FIN = "23:00";
+
+  function hm(txt, porDefecto){
+    var p = String(txt || porDefecto).split(":");
+    return {h: parseInt(p[0],10) || 0, m: parseInt(p[1],10) || 0};
+  }
+  function vencimiento(t){
+    if(!t.fecha) return null;
+    var h = t.horaLimite || ACTIVO_FIN;
+    var d = new Date(t.fecha + "T00:00:00");
+    var p = hm(h, ACTIVO_FIN);
+    d.setHours(p.h, p.m, 0, 0);
+    return d;
+  }
+  // Retrocede `minutos` contando solo el tiempo despierto.
+  function restarActivo(fin, minutos){
+    var ini = hm(ACTIVO_INI, "06:00"), fn = hm(ACTIVO_FIN, "23:00");
+    var cur = new Date(fin.getTime());
+    var restante = minutos, guarda = 0;
+    while(restante > 0 && guarda++ < 500){
+      var diaIni = new Date(cur); diaIni.setHours(ini.h, ini.m, 0, 0);
+      var diaFin = new Date(cur); diaFin.setHours(fn.h, fn.m, 0, 0);
+      if(cur > diaFin){ cur = new Date(diaFin.getTime()); continue; }
+      if(cur <= diaIni){
+        var prev = new Date(diaIni.getTime() - 24*3600000);
+        prev.setHours(fn.h, fn.m, 0, 0);
+        cur = prev;
+        continue;
+      }
+      var disponible = (cur - diaIni) / 60000;
+      if(disponible >= restante){ cur = new Date(cur.getTime() - restante*60000); restante = 0; }
+      else { restante -= disponible; cur = new Date(diaIni.getTime()); }
+    }
+    return cur;
+  }
+  function limiteArranque(t){
+    if(!t.fecha || !t.estimadoMin) return null;
+    var fin = vencimiento(t);
+    if(!fin) return null;
+    return restarActivo(fin, t.estimadoMin * HOLGURA);
+  }
+  function estadoArranque(t){
+    var l = limiteArranque(t);
+    if(!l || t.estado === "hecho") return null;
+    var faltan = l.getTime() - Date.now();
+    return {
+      cuando: l,
+      clase: faltan < 0 ? "tarde" : (faltan < 3*3600000 ? "justo" : ""),
+      faltan: faltan
+    };
+  }
+  // "14:30" sobre el día de una referencia dada.
+  function horaEnDia(refMs, horaTexto){
+    var d = new Date(refMs);
+    var p = String(horaTexto).split(":");
+    d.setHours(parseInt(p[0],10) || 0, parseInt(p[1],10) || 0, 0, 0);
+    return d.getTime();
+  }
+
+  function cuandoCorto(d){
+    var hoy = hoyISO(), iso = d.toLocaleDateString("en-CA");
+    var hora = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    if(iso === hoy) return "hoy " + hora;
+    if(iso === masDias(hoy, 1)) return "mañana " + hora;
+    if(iso === masDias(hoy, -1)) return "ayer " + hora;
+    return d.toLocaleDateString("es-PE", {weekday:"short", day:"numeric"}).replace(".", "") + " " + hora;
+  }
+
+  var PESO_PRIO = {alta:0, media:1, baja:2};
+  function ordenar(a,b){
+    if(a.orden !== b.orden) return a.orden - b.orden;
+    return (a.creado||0) - (b.creado||0);
+  }
+  function ordenSiguiente(estado){
+    var enCol = lista().filter(function(t){ return t.estado === estado; });
+    if(!enCol.length) return 1000;
+    return Math.max.apply(null, enCol.map(function(t){ return t.orden||0; })) + 10;
+  }
+
+  // ---------- render ----------
+  function render(){
+    // resumen
+    $("n-todas").textContent  = contarVista("todas");
+    $("n-venc").textContent   = contarVista("venc");
+    $("n-pronto").textContent = contarVista("pronto");
+    $("n-sinf").textContent   = contarVista("sinf");
+    ["todas","venc","pronto","sinf"].forEach(function(v){
+      $("t-"+v).setAttribute("aria-pressed", String(filtroVista === v));
+    });
+
+    // subtítulo
+    var total = lista().length;
+    var pend = lista().filter(function(t){ return t.estado !== "hecho"; }).length;
+    $("sub").textContent = total === 0
+      ? "Tu fichero está vacío"
+      : pend + (pend === 1 ? " tarea abierta" : " tareas abiertas") + " de " + total;
+
+    renderRitmo();
+    renderOlvido();
+    renderRegistro();
+    renderFiltros();
+    renderDatalist();
+
+    // columnas
+    var vacioTotal = total === 0;
+    COLS.forEach(function(col){
+      var stack = $("s-"+col);
+      stack.innerHTML = "";
+      var items = lista().filter(function(t){
+        if(t.estado !== col || !pasaFiltro(t)) return false;
+        // Las subtareas viven dentro de su ficha; solo salen al tablero mientras corren.
+        if(t.padre && tareas[t.padre] && t.estado !== "curso") return false;
+        return true;
+      }).sort(ordenar);
+      $("c-"+col).textContent = items.length;
+      if(!items.length && !vacioTotal){
+        var e = document.createElement("div");
+        e.className = "empty";
+        e.textContent = filtroVista === "todas" && !filtroProyecto ? "Sin tareas" : "Nada con este filtro";
+        stack.appendChild(e);
+      }
+      items.forEach(function(t,i){ stack.appendChild(ficha(t, i, items.length)); });
+    });
+
+    var blank = document.getElementById("blank");
+    if(vacioTotal && !blank){
+      blank = document.createElement("div");
+      blank.className = "blank"; blank.id = "blank";
+      blank.innerHTML = '<h3>Fichero en blanco</h3><p>Cada ficha lleva una tarea, su proyecto, su fecha límite y su prioridad. Los proyectos se crean solos: escribe el nombre una vez y queda como etiqueta. El cronómetro arranca cuando mueves una ficha a <strong>En curso</strong>.</p>';
+      var b = document.createElement("button");
+      b.className = "btn-primary"; b.textContent = "Agregar la primera tarea";
+      b.addEventListener("click", function(){ abrir(null,"pendiente"); });
+      blank.appendChild(b);
+      $("board").appendChild(blank);
+    } else if(!vacioTotal && blank){
+      blank.remove();
+    }
+  }
+
+  function ficha(t, idx, total){
+    var el = document.createElement("article");
+    el.className = "card" + (t.estado === "hecho" ? " is-done" : "");
+    el.draggable = true;
+    el.tabIndex = 0;
+    el.dataset.id = t.id;
+    el.style.borderLeftColor = colorProyecto(t.proyecto);
+
+    if(t.padre && tareas[t.padre]){
+      var pt = document.createElement("span");
+      pt.className = "padre-tag";
+      pt.textContent = "↳ " + tareas[t.padre].titulo;
+      pt.title = "Subtarea de: " + tareas[t.padre].titulo;
+      el.appendChild(pt);
+    }
+
+    var h = document.createElement("div");
+    h.className = "title";
+    h.textContent = t.titulo;
+    el.appendChild(h);
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+
+    if(t.proyecto){
+      var tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = t.subproyecto ? t.proyecto + " › " + t.subproyecto : t.proyecto;
+      tag.title = t.subproyecto ? t.proyecto + " › " + t.subproyecto : t.proyecto;
+      tag.style.color = colorProyecto(t.proyecto);
+      meta.appendChild(tag);
+    }
+    if(t.fecha){
+      var f = etiquetaFecha(t.fecha);
+      var d = document.createElement("span");
+      d.className = "date " + (t.estado === "hecho" ? "" : f.cls);
+      d.textContent = f.txt + (t.horaLimite ? " " + t.horaLimite : "");
+      meta.appendChild(d);
+    }
+
+    var arr = estadoArranque(t);
+    if(arr){
+      var ca = document.createElement("span");
+      ca.className = "arranca " + arr.clase;
+      ca.textContent = (arr.clase === "tarde" ? "⚠ era " : "▷ ") + cuandoCorto(arr.cuando);
+      ca.title = "Hora límite para ponerte: reserva " +
+                 duracion(t.estimadoMin * HOLGURA * 60000) + " de tiempo despierto";
+      meta.appendChild(ca);
+    }
+    if(t.prioridad && t.prioridad !== "media"){
+      var p = document.createElement("span");
+      p.className = "prio " + t.prioridad;
+      p.innerHTML = '<i></i>';
+      p.appendChild(document.createTextNode(NOMBRE_PRIO[t.prioridad]));
+      meta.appendChild(p);
+    }
+    // reloj del ciclo (en una ficha con subtareas, la suma de todas)
+    var ms = esPadre(t) ? tiempoTotal(t) : msEnCurso(t);
+    if(t.estado === "curso"){
+      var dc = document.createElement("span");
+      dc.className = "dur corre";
+      dc.dataset.dur = t.id;
+      dc.textContent = "▶ " + duracion(ms);
+      dc.title = "En curso desde " + fechaHora(t.cursoDesde || t.iniciado) +
+                 (t.tramoId ? "\nAnotándose ahora en tu calendario" : "");
+      meta.appendChild(dc);
+    } else if(t.estado === "hecho"){
+      var dh = document.createElement("span");
+      dh.className = "dur cerrado";
+      dh.textContent = ms > 0 ? "✓ " + duracion(ms) : "✓ directo";
+      dh.title = (ms > 0 ? "Tiempo en curso: " + duracion(ms) + "\n" : "Nunca pasó por En curso\n") +
+                 (t.completado ? "Terminada: " + fechaHora(t.completado) : "");
+      meta.appendChild(dh);
+    } else if(ms > 0){
+      var dp = document.createElement("span");
+      dp.className = "dur";
+      dp.textContent = "❙❙ " + duracion(ms);
+      dp.title = "Estuvo " + duracion(ms) + " en curso y volvió atrás";
+      meta.appendChild(dp);
+    }
+
+    var dr = driveDe(t);
+    if(dr){
+      var ad = document.createElement("a");
+      ad.className = "drive" + (dr.propio ? "" : " heredado");
+      ad.href = dr.url; ad.target = "_blank"; ad.rel = "noopener";
+      ad.title = (dr.propio ? "Abrir en Drive: " : "Carpeta del proyecto: ") + dr.nombre;
+      var icd = document.createElement("span");
+      icd.textContent = "📁"; icd.style.flex = "none";
+      var nmd = document.createElement("span");
+      nmd.textContent = dr.nombre;
+      ad.appendChild(icd); ad.appendChild(nmd);
+      ad.addEventListener("click", function(ev){ ev.stopPropagation(); });
+      meta.appendChild(ad);
+    }
+
+    if(t.eventoId){
+      var ag = document.createElement(t.eventoLink ? "a" : "span");
+      ag.className = "agenda";
+      ag.textContent = t.meetUrl ? "Meet" : "En agenda";
+      if(t.eventoLink){ ag.href = t.meetUrl || t.eventoLink; ag.target = "_blank"; ag.rel = "noopener"; }
+      ag.title = t.meetUrl ? "Abrir la reunión en Google Meet" : "Agendada en Google Calendar";
+      ag.addEventListener("click", function(ev){ ev.stopPropagation(); });
+      meta.appendChild(ag);
+    }
+
+    if(meta.childNodes.length) el.appendChild(meta);
+
+    // mover con botones (táctil / teclado)
+    var nudge = document.createElement("div");
+    nudge.className = "nudge";
+    var ci = COLS.indexOf(t.estado);
+    [["‹", -1],["›", 1]].forEach(function(par){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = par[0];
+      b.title = par[1] < 0 ? "Mover a la izquierda" : "Mover a la derecha";
+      var destino = COLS[ci + par[1]];
+      if(!destino) b.disabled = true;
+      b.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        mover(t.id, destino, null);
+      });
+      nudge.appendChild(b);
+    });
+    el.appendChild(nudge);
+
+    // Bloque de subtareas
+    var hs = hijas(t.id);
+    if(hs.length || abiertas[t.id]){
+      var hechas = hs.filter(function(x){ return x.estado === "hecho"; }).length;
+
+      if(hs.length){
+        var av = document.createElement("div");
+        av.className = "avance";
+        var barra = document.createElement("div");
+        barra.className = "avance-barra";
+        var relleno = document.createElement("i");
+        relleno.style.width = Math.round(hechas / hs.length * 100) + "%";
+        barra.appendChild(relleno);
+        av.appendChild(barra);
+        var n = document.createElement("span");
+        n.className = "avance-n";
+        n.textContent = hechas + "/" + hs.length;
+        av.appendChild(n);
+        el.appendChild(av);
+      }
+
+      var tog = document.createElement("button");
+      tog.type = "button";
+      tog.className = "desplegar";
+      tog.setAttribute("aria-expanded", String(!!abiertas[t.id]));
+      tog.innerHTML = '<span class="chev">▶</span>';
+      tog.appendChild(document.createTextNode(
+        abiertas[t.id] ? "Ocultar subtareas" : (hs.length ? "Ver subtareas" : "Agregar subtareas")
+      ));
+      tog.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        abiertas[t.id] = !abiertas[t.id];
+        render();
+      });
+      el.appendChild(tog);
+
+      if(abiertas[t.id]){
+        var caja = document.createElement("div");
+        caja.className = "subs";
+        caja.addEventListener("click", function(ev){ ev.stopPropagation(); });
+
+        // Reordenar subtareas arrastrándolas dentro de su propia lista.
+        function limpiarDestinos(){
+          Array.prototype.forEach.call(caja.querySelectorAll(".sub"), function(f){
+            f.classList.remove("destino");
+          });
+        }
+        caja.addEventListener("dragover", function(ev){
+          if(!caja.querySelector(".arrastrando")) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          ev.dataTransfer.dropEffect = "move";
+          caja.classList.add("sobre");
+          limpiarDestinos();
+          var filas = Array.prototype.slice.call(caja.querySelectorAll(".sub"));
+          for(var i = 0; i < filas.length; i++){
+            var r = filas[i].getBoundingClientRect();
+            if(ev.clientY < r.top + r.height/2){ filas[i].classList.add("destino"); break; }
+          }
+        });
+        caja.addEventListener("dragleave", function(ev){
+          if(!caja.contains(ev.relatedTarget)){ caja.classList.remove("sobre"); limpiarDestinos(); }
+        });
+        caja.addEventListener("drop", function(ev){
+          var arrastrada = caja.querySelector(".arrastrando");
+          if(!arrastrada) return;
+          ev.preventDefault();
+          ev.stopPropagation();   // que la columna no se lo quede
+          caja.classList.remove("sobre");
+          limpiarDestinos();
+
+          var id = ev.dataTransfer.getData("text/plain");
+          var sub = tareas[id];
+          if(!sub || sub.padre !== t.id) return;
+
+          var filas = Array.prototype.slice.call(caja.querySelectorAll(".sub"));
+          var antes = null;
+          for(var i = 0; i < filas.length; i++){
+            var r = filas[i].getBoundingClientRect();
+            if(ev.clientY < r.top + r.height/2){ antes = filas[i]; break; }
+          }
+          var hs = hijas(t.id);
+          var nuevoOrden;
+          if(!antes){
+            nuevoOrden = ordenSiguienteHija(t.id);
+          } else {
+            var destino = tareas[antes.dataset.sub];
+            if(!destino || destino.id === sub.id) return;
+            var idx = filas.indexOf(antes);
+            var previa = idx > 0 ? tareas[filas[idx-1].dataset.sub] : null;
+            var oAntes = previa ? (previa.orden||0) : ((destino.orden||0) - 20);
+            nuevoOrden = (oAntes + (destino.orden||0)) / 2;
+          }
+          var copia = Object.assign({}, sub);
+          copia.orden = nuevoOrden;
+          guardar(copia);
+        });
+
+        hs.forEach(function(s){
+          var fila = document.createElement("div");
+          fila.className = "sub" + (s.estado === "hecho" ? " lista" : "") +
+                           (s.estado === "curso" ? " corre" : "");
+          fila.draggable = true;
+          fila.dataset.sub = s.id;
+          fila.addEventListener("dragstart", function(ev){
+            ev.stopPropagation();   // se arrastra la subtarea, no la ficha entera
+            ev.dataTransfer.setData("text/plain", s.id);
+            ev.dataTransfer.effectAllowed = "move";
+            arrastrandoId = s.id;
+            fila.classList.add("arrastrando");
+          });
+          fila.addEventListener("dragend", function(ev){
+            ev.stopPropagation();
+            arrastrandoId = null;
+            fila.classList.remove("arrastrando");
+          });
+
+          var asa = document.createElement("span");
+          asa.className = "asa";
+          asa.textContent = "⋮⋮";
+          asa.title = "Arrastra para reordenar";
+          fila.appendChild(asa);
+
+          var chk = document.createElement("button");
+          chk.type = "button"; chk.className = "caja";
+          chk.title = s.estado === "hecho" ? "Reabrir" : "Marcar hecha";
+          chk.addEventListener("click", function(){ alternarSub(s); });
+          fila.appendChild(chk);
+
+          var tx = document.createElement("span");
+          tx.className = "st";
+          tx.textContent = s.titulo;
+          tx.title = s.titulo + "  (clic para abrirla)";
+          tx.addEventListener("click", function(){ abrir(s.id); });
+          fila.appendChild(tx);
+
+          var msS = msEnCurso(s);
+          if(msS > 0){
+            var cr = document.createElement("span");
+            cr.className = "crono";
+            cr.textContent = duracion(msS);
+            fila.appendChild(cr);
+          }
+
+          if(s.estado !== "hecho"){
+            var pl = document.createElement("button");
+            pl.type = "button"; pl.className = "play";
+            pl.textContent = s.estado === "curso" ? "Pausar" : "Empezar";
+            pl.addEventListener("click", function(){
+              mover(s.id, s.estado === "curso" ? "pendiente" : "curso", null);
+            });
+            fila.appendChild(pl);
+          }
+
+          caja.appendChild(fila);
+        });
+
+        var nueva = document.createElement("div");
+        nueva.className = "sub-nueva";
+        var inp = document.createElement("input");
+        inp.type = "text"; inp.placeholder = "Nueva subtarea"; inp.maxLength = 200;
+        inp.addEventListener("keydown", function(ev){
+          ev.stopPropagation();
+          if(ev.key === "Enter"){
+            ev.preventDefault();
+            if(inp.value.trim()){ nuevaSub(t.id, inp.value.trim()); }
+          }
+        });
+        var add = document.createElement("button");
+        add.type = "button"; add.textContent = "Agregar";
+        add.addEventListener("click", function(){
+          if(inp.value.trim()) nuevaSub(t.id, inp.value.trim());
+        });
+        nueva.appendChild(inp); nueva.appendChild(add);
+        caja.appendChild(nueva);
+
+        el.appendChild(caja);
+        setTimeout(function(){ if(foco === t.id){ inp.focus(); foco = null; } }, 0);
+      }
+    }
+
+    el.addEventListener("click", function(){ abrir(t.id); });
+    el.addEventListener("keydown", function(ev){
+      if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); abrir(t.id); }
+    });
+    el.addEventListener("dragstart", function(ev){
+      ev.dataTransfer.setData("text/plain", t.id);
+      ev.dataTransfer.effectAllowed = "move";
+      arrastrandoId = t.id;
+      el.classList.add("dragging");
+    });
+    el.addEventListener("dragend", function(){
+      arrastrandoId = null;
+      el.classList.remove("dragging");
+    });
+
+    // Zona central de la ficha: anidar. Bordes: reordenar (lo maneja la columna).
+    el.addEventListener("dragover", function(ev){
+      if(!arrastrandoId || !puedeAnidar(arrastrandoId, t.id)){ return; }
+      var r = el.getBoundingClientRect();
+      var rel = (ev.clientY - r.top) / Math.max(1, r.height);
+      if(rel > 0.28 && rel < 0.78){
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.dataTransfer.dropEffect = "move";
+        el.classList.add("anidar");
+      } else {
+        el.classList.remove("anidar");
+      }
+    });
+    el.addEventListener("dragleave", function(ev){
+      if(!el.contains(ev.relatedTarget)) el.classList.remove("anidar");
+    });
+    el.addEventListener("drop", function(ev){
+      if(!el.classList.contains("anidar")) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      el.classList.remove("anidar");
+      var id = ev.dataTransfer.getData("text/plain");
+      if(id) anidar(id, t.id);
+    });
+
+    return el;
+  }
+
+  var LIMITE_OLVIDO = 8*3600000;
+  function olvidadas(){
+    var ahora = Date.now();
+    return lista().filter(function(t){
+      if(t.estado !== "curso" || !t.cursoDesde) return false;
+      if(ahora - t.cursoDesde < LIMITE_OLVIDO) return false;
+      return !t.avisado || (ahora - t.avisado) > LIMITE_OLVIDO;
+    });
+  }
+
+  function renderOlvido(){
+    var caja = $("olvido");
+    var ls = olvidadas();
+    if(!ls.length){ caja.hidden = true; caja.innerHTML = ""; return; }
+    caja.hidden = false;
+    caja.innerHTML = "";
+
+    var h = document.createElement("h3");
+    h.textContent = ls.length === 1 ? "Una ficha lleva mucho rato en curso" : "Hay fichas que llevan mucho rato en curso";
+    caja.appendChild(h);
+
+    var p = document.createElement("p");
+    p.textContent = "El cronómetro no distingue entre trabajar y olvidarse de mover la ficha. " +
+      "Si ya no estás en esto, ciérralo: el registro se recorta hasta la última vez que constaba actividad, " +
+      "no hasta ahora.";
+    caja.appendChild(p);
+
+    ls.forEach(function(t){
+      var fila = document.createElement("div");
+      fila.className = "olvido-fila";
+
+      var q = document.createElement("span");
+      q.className = "qt";
+      q.textContent = t.titulo + " — " + duracion(Date.now() - t.cursoDesde);
+      fila.appendChild(q);
+
+      var sigo = document.createElement("button");
+      sigo.className = "btn"; sigo.type = "button"; sigo.textContent = "Sigo en esto";
+      sigo.addEventListener("click", function(){
+        var copia = Object.assign({}, tareas[t.id] || t);
+        copia.avisado = Date.now();
+        guardar(copia);
+      });
+      fila.appendChild(sigo);
+
+      var corte = t.tramoUltimo || t.tramoInicio || t.cursoDesde;
+      var ya = document.createElement("button");
+      ya.className = "btn"; ya.type = "button";
+      ya.textContent = "Ya no — cerrar" + (t.tramoId ? " en " + fechaHora(corte).slice(-5) : "");
+      ya.addEventListener("click", function(){
+        var viva = tareas[t.id] || t;
+        if(viva.tramoId) cerrarTramo(viva, corte).catch(function(){
+          toast("Cerré la ficha, pero no pude recortar el bloque del calendario.");
+        });
+        // El tiempo en curso del tablero también se corta en la última actividad.
+        var copia = Object.assign({}, tareas[t.id] || t);
+        copia.msEnCurso = (copia.msEnCurso||0) + Math.max(0, corte - copia.cursoDesde);
+        copia.cursoDesde = 0;
+        copia.estado = "pendiente";
+        copia.orden = ordenSiguiente("pendiente");
+        copia.avisado = 0;
+        copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0;
+        guardar(copia);
+        toast("Devuelta a Por hacer, con el tiempo recortado");
+      });
+      fila.appendChild(ya);
+
+      caja.appendChild(fila);
+    });
+  }
+
+  function renderRegistro(){
+    var caja = $("sw-registro");
+    if(!mcp){ caja.hidden = true; return; }
+    caja.hidden = false;
+    var sub = $("registro-sub");
+    var enCurso = lista().filter(function(t){ return t.estado === "curso"; });
+    var anotadas = enCurso.filter(function(t){ return t.tramoId; }).length;
+    caja.className = "registro";
+    if(!registrarTiempo){
+      if(enCurso.length){
+        caja.classList.add("pendiente");
+        sub.textContent = "Tienes " + enCurso.length + (enCurso.length === 1 ? " ficha" : " fichas") +
+          " en curso que no se están anotando. Actívalo y el bloque arrancará a la hora real en que la pusiste En curso.";
+      } else {
+        sub.textContent = "Cada ficha que pases a En curso queda como un bloque en tu calendario, con su hora real.";
+      }
+    } else {
+      caja.classList.add("activo");
+      sub.textContent = anotadas
+        ? "Anotando ahora " + anotadas + (anotadas === 1 ? " ficha" : " fichas") + " en tu calendario."
+        : "Activo. El próximo En curso se anota en tu calendario.";
+    }
+  }
+
+  function renderRitmo(){
+    var pace = $("pace");
+    var visibles = lista().filter(function(t){ return !filtroProyecto || t.proyecto === filtroProyecto; });
+    if(!visibles.length){ pace.hidden = true; return; }
+    pace.hidden = false;
+
+    var enCurso = visibles.filter(function(t){ return t.estado === "curso"; });
+    $("p-curso").textContent = enCurso.length;
+
+    var corte = Date.now() - 7*86400000;
+    $("p-semana").textContent = visibles.filter(function(t){
+      return t.estado === "hecho" && t.completado && t.completado >= corte;
+    }).length;
+
+    var cerradas = visibles.filter(function(t){ return t.estado === "hecho" && (t.msEnCurso||0) > 0; });
+    if(!cerradas.length){
+      $("p-ciclo").textContent = "—";
+      $("p-ciclo").title = "Aparece cuando termines tareas que hayan pasado por En curso";
+    } else {
+      var suma = cerradas.reduce(function(a,t){ return a + (t.msEnCurso||0); }, 0);
+      $("p-ciclo").textContent = duracion(Math.round(suma / cerradas.length));
+      $("p-ciclo").title = "Promedio sobre " + cerradas.length + " tarea(s) terminadas";
+    }
+  }
+
+  // Los contadores en vivo se refrescan sin re-dibujar el tablero.
+  setInterval(function(){
+    Array.prototype.forEach.call(document.querySelectorAll("[data-dur]"), function(el){
+      var t = tareas[el.dataset.dur];
+      if(t) el.textContent = "▶ " + duracion(msEnCurso(t));
+    });
+  }, 60000);
+
+  // El paso del tiempo cambia qué evento está en curso: el panel se entera solo.
+  var firmaAgenda = null;
+  function tickAgenda(){
+    if(!agenda.eventos || diaAgenda !== 0) return;
+    var ahora = Date.now();
+    var f = agenda.eventos.map(function(e){
+      var i = horaDe(e.start), fi = horaDe(e.end);
+      if(!i) return "-";
+      return (i.getTime() <= ahora ? "1" : "0") + (fi && fi.getTime() <= ahora ? "1" : "0");
+    }).join("");
+    if(f !== firmaAgenda){
+      firmaAgenda = f;
+      renderAgenda();
+    }
+  }
+  setInterval(tickAgenda, 30000);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden) tickAgenda();
+  });
+
+  function renderFiltros(){
+    var cont = $("filtros");
+    var ps = proyectos();
+    cont.innerHTML = "";
+    if(!ps.length) return;
+    var lbl = document.createElement("span");
+    lbl.className = "lbl"; lbl.textContent = "Proyecto";
+    cont.appendChild(lbl);
+
+    var todos = document.createElement("button");
+    todos.className = "chip"; todos.type = "button";
+    todos.textContent = "Todos";
+    todos.setAttribute("aria-pressed", String(filtroProyecto === null));
+    todos.addEventListener("click", function(){ filtroProyecto = null; filtroSub = null; render(); });
+    cont.appendChild(todos);
+
+    ps.forEach(function(p){
+      var b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.setAttribute("aria-pressed", String(filtroProyecto === p));
+      var dot = document.createElement("span");
+      dot.className = "dot"; dot.style.background = colorProyecto(p);
+      b.appendChild(dot);
+      b.appendChild(document.createTextNode(p));
+      b.addEventListener("click", function(){
+        filtroProyecto = (filtroProyecto === p) ? null : p;
+        filtroSub = null;
+        render();
+      });
+      cont.appendChild(b);
+    });
+
+    // Atajo a la carpeta del proyecto filtrado
+    if(filtroProyecto && carpetas[filtroProyecto]){
+      var ac = document.createElement("a");
+      ac.className = "chip";
+      ac.href = carpetas[filtroProyecto].url;
+      ac.target = "_blank"; ac.rel = "noopener";
+      ac.style.textDecoration = "none";
+      ac.title = "Abrir en Drive: " + carpetas[filtroProyecto].nombre;
+      ac.textContent = "📁 " + carpetas[filtroProyecto].nombre;
+      cont.appendChild(ac);
+    }
+
+    // segundo nivel: subproyectos del proyecto elegido
+    var subs = filtroProyecto ? subproyectosDe(filtroProyecto) : [];
+    if(!subs.length){ filtroSub = null; return; }
+
+    var salto = document.createElement("span");
+    salto.style.flexBasis = "100%"; salto.style.height = "0";
+    cont.appendChild(salto);
+
+    var lbl2 = document.createElement("span");
+    lbl2.className = "lbl"; lbl2.textContent = "Dentro de " + filtroProyecto;
+    cont.appendChild(lbl2);
+
+    var todosSub = document.createElement("button");
+    todosSub.className = "chip"; todosSub.type = "button";
+    todosSub.textContent = "Todo";
+    todosSub.setAttribute("aria-pressed", String(filtroSub === null));
+    todosSub.addEventListener("click", function(){ filtroSub = null; render(); });
+    cont.appendChild(todosSub);
+
+    subs.forEach(function(s){
+      var b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.textContent = s;
+      b.setAttribute("aria-pressed", String(filtroSub === s));
+      b.addEventListener("click", function(){
+        filtroSub = (filtroSub === s) ? null : s;
+        render();
+      });
+      cont.appendChild(b);
+    });
+  }
+
+  function llenarDatalist(el, valores){
+    el.innerHTML = "";
+    valores.forEach(function(v){
+      var o = document.createElement("option");
+      o.value = v;
+      el.appendChild(o);
+    });
+  }
+  function renderDatalist(){
+    llenarDatalist($("proys"), proyectos());
+  }
+  // El desplegable de subproyectos sigue al proyecto que esté escrito.
+  function refrescarSubs(campoProy){
+    llenarDatalist($("subproys"), subproyectosDe(campoProy.value.trim()));
+  }
+
+  // ---------- mover ----------
+  // Registra el reloj del ciclo: entrada/salida de "En curso" y cierre.
+  function aplicarTransicion(copia, anterior, nuevo){
+    var now = Date.now();
+    if(anterior === "curso" && nuevo !== "curso"){
+      copia.msEnCurso = (copia.msEnCurso||0) + (copia.cursoDesde ? now - copia.cursoDesde : 0);
+      copia.cursoDesde = 0;
+    }
+    if(nuevo === "curso" && anterior !== "curso"){
+      copia.cursoDesde = now;
+      if(!copia.iniciado) copia.iniciado = now;
+    }
+    if(nuevo === "hecho"){
+      if(anterior !== "hecho") copia.completado = now;
+    } else {
+      copia.completado = 0;
+    }
+    return copia;
+  }
+
+  function mover(id, estado, ordenNuevo){
+    var t = tareas[id];
+    if(!t || !estado) return;
+    var copia = Object.assign({}, t);
+    copia.estado = estado;
+    copia.orden = (ordenNuevo === null || ordenNuevo === undefined) ? ordenSiguiente(estado) : ordenNuevo;
+    var anterior = t.estado;
+    var previa = Object.assign({}, t);   // estado antes del cambio, para poder corregir
+    aplicarTransicion(copia, anterior, estado);
+    guardar(copia);
+    trasTransicion(copia, anterior, estado);
+    quizaPreguntarCierre(previa, anterior, estado);
+
+    if(estado === "hecho" && anterior !== "hecho"){
+      var pend = hijas(id).filter(function(x){ return x.estado !== "hecho"; }).length;
+      if(pend) toast("Ojo: esa ficha todavía tiene " + pend + " subtarea(s) sin terminar");
+      if(copia.avisoId && mcp) sincronizarAviso(copia);   // retira el aviso de arranque
+    }
+  }
+
+  COLS.forEach(function(col){
+    var stack = $("s-"+col);
+    var seccion = document.querySelector('.col[data-col="' + col + '"]') || stack;
+
+    seccion.addEventListener("dragover", function(ev){
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+      seccion.classList.add("recibe");
+    });
+    seccion.addEventListener("dragleave", function(ev){
+      if(!seccion.contains(ev.relatedTarget)) seccion.classList.remove("recibe");
+    });
+    seccion.addEventListener("drop", function(ev){
+      ev.preventDefault();
+      seccion.classList.remove("recibe");
+      var id = ev.dataTransfer.getData("text/plain");
+      if(!id || !tareas[id]) return;
+      // posición según dónde se soltó
+      var cards = Array.prototype.slice.call(stack.querySelectorAll(".card"));
+      var antes = null;
+      for(var i=0;i<cards.length;i++){
+        var r = cards[i].getBoundingClientRect();
+        if(ev.clientY < r.top + r.height/2){ antes = cards[i]; break; }
+      }
+      var nuevoOrden;
+      if(!antes){
+        nuevoOrden = ordenSiguiente(col);
+      } else {
+        var destino = tareas[antes.dataset.id];
+        var idx = cards.indexOf(antes);
+        var previa = idx > 0 ? tareas[cards[idx-1].dataset.id] : null;
+        var oAntes = previa ? (previa.orden||0) : ((destino.orden||0) - 20);
+        nuevoOrden = (oAntes + (destino.orden||0)) / 2;
+      }
+      mover(id, col, nuevoOrden);
+    });
+  });
+
+  // ---------- diálogo ----------
+  // Muestra en vivo, dentro del diálogo, cuándo hay que ponerse.
+  function renderArranque(){
+    var caja = $("f-arranque");
+    var borrador = {
+      fecha: $("f-fecha").value || "",
+      horaLimite: $("f-hora").value || "",
+      estimadoMin: Math.round((parseFloat($("f-est").value) || 0) * 60)
+    };
+    caja.className = "arranque";
+    if(!borrador.fecha){ caja.textContent = "Ponle fecha límite"; return; }
+    if(!borrador.estimadoMin){ caja.textContent = "Dime cuántas horas te tomará"; return; }
+
+    var l = limiteArranque(borrador);
+    if(!l){ caja.textContent = "—"; return; }
+    var faltan = l.getTime() - Date.now();
+    var horasRes = Math.round(borrador.estimadoMin * HOLGURA / 6) / 10;
+    caja.textContent = cuandoCorto(l) +
+      "  (reserva " + horasRes + " h de tu tiempo despierto)";
+    if(faltan < 0){
+      caja.classList.add("tarde");
+      caja.textContent = "Ya deberías haber empezado: era " + cuandoCorto(l);
+    } else if(faltan < 3*3600000){
+      caja.classList.add("justo");
+    } else {
+      caja.classList.add("ok");
+    }
+  }
+
+  // Corregir a mano cuándo empezaste, o cuánto tiempo le dedicaste.
+  function renderTiempoManual(t){
+    var wrapIni = $("f-inicio-wrap"), wrapReal = $("f-real-wrap"), nota = $("f-tiempo-nota");
+    var caja = $("f-tiempo-wrap");
+    if(!t){ caja.hidden = true; return; }
+    caja.hidden = false;
+
+    if(t.estado === "curso"){
+      wrapIni.hidden = false; wrapReal.hidden = true;
+      var desde = t.cursoDesde || Date.now();
+      $("f-inicio").value = pad2(new Date(desde).getHours()) + ":" + pad2(new Date(desde).getMinutes());
+      nota.textContent = "Corrígela si empezaste antes de moverla aquí. " +
+        (t.msEnCurso ? "Ya tenía " + duracion(t.msEnCurso) + " de sesiones anteriores." : "");
+    } else {
+      wrapIni.hidden = true; wrapReal.hidden = false;
+      $("f-real").value = t.msEnCurso ? (Math.round(t.msEnCurso/36000)/100) : "";
+      nota.textContent = "Total acumulado en esta ficha. Edítalo si el cronómetro no lo registró bien.";
+    }
+  }
+
+  var dlg = $("dlg");
+  function abrir(id, estadoPorDefecto){
+    editando = id || null;
+    var t = id ? tareas[id] : null;
+    $("dlg-titulo").textContent = t ? "Editar ficha" : "Nueva tarea";
+    $("f-titulo").value = t ? t.titulo : "";
+    $("f-proy").value   = t ? (t.proyecto||"") : (filtroProyecto || "");
+    $("f-sub").value    = t ? (t.subproyecto||"") : (filtroSub || "");
+    refrescarSubs($("f-proy"));
+    $("f-fecha").value  = t ? (t.fecha||"") : "";
+    $("f-hora").value   = t ? (t.horaLimite||"") : "";
+    $("f-est").value    = (t && t.estimadoMin) ? (Math.round(t.estimadoMin/60*100)/100) : "";
+    $("f-prio").value   = t ? (t.prioridad||"media") : "media";
+    $("f-estado").value = t ? t.estado : (estadoPorDefecto || "pendiente");
+    $("f-notas").value  = t ? (t.notas||"") : "";
+    $("f-borrar").hidden = !t;
+    $("f-subs").hidden = !t;
+    if(t && t.padre && tareas[t.padre]){
+      $("f-subs").textContent = "Sacar de “" + recortar(tareas[t.padre].titulo, 16) + "”";
+      $("f-subs").dataset.modo = "sacar";
+    } else if(t){
+      $("f-subs").textContent = hijas(t.id).length ? "Ver subtareas" : "Dividir en subtareas";
+      $("f-subs").dataset.modo = "subs";
+    }
+
+    renderArranque();
+    renderTiempoManual(t);
+    renderBloqueCal(t);
+    renderBloqueDrive(t);
+
+    var hist = $("f-historial");
+    if(t){
+      var lineas = [];
+      if(t.padre && tareas[t.padre]) lineas.push("Subtarea de   " + tareas[t.padre].titulo);
+      var hsH = hijas(t.id);
+      if(hsH.length){
+        lineas.push("Subtareas     " + hsH.filter(function(x){ return x.estado === "hecho"; }).length +
+                    " de " + hsH.length + " hechas");
+        var totalH = tiempoTotal(t);
+        if(totalH > 0) lineas.push("Tiempo total  " + duracion(totalH) + " (suma de subtareas)");
+      }
+      if(t.creado)   lineas.push("Creada        " + fechaHora(t.creado));
+      if(t.iniciado) lineas.push("A En curso    " + fechaHora(t.iniciado));
+      if(t.completado) lineas.push("Terminada     " + fechaHora(t.completado));
+      var ms = msEnCurso(t);
+      if(ms > 0) lineas.push("En curso      " + duracion(ms) + (t.estado === "curso" ? " (corriendo)" : ""));
+      hist.textContent = lineas.join("\n");
+      hist.hidden = !lineas.length;
+    } else {
+      hist.hidden = true;
+    }
+    if(typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open","");
+    setTimeout(function(){ $("f-titulo").focus(); }, 30);
+  }
+  function cerrar(){
+    if(typeof dlg.close === "function") dlg.close(); else dlg.removeAttribute("open");
+    editando = null;
+  }
+
+  $("form").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var titulo = $("f-titulo").value.trim();
+    if(!titulo) return;
+    var estado = $("f-estado").value;
+    var base = editando ? Object.assign({}, tareas[editando]) : {
+      id: nuevoId(), creado: Date.now(), orden: ordenSiguiente(estado),
+      completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
+      tramoId: "", tramoInicio: 0,
+      horaLimite: "", estimadoMin: 0, avisoId: "", avisoLink: "", avisoHora: ""
+    };
+    var anterior = editando ? tareas[editando].estado : null;
+    if(editando && anterior !== estado) base.orden = ordenSiguiente(estado);
+    var antesFecha = editando ? tareas[editando].fecha : "";
+    var antesTitulo = editando ? tareas[editando].titulo : "";
+    base.titulo      = titulo;
+    base.proyecto    = $("f-proy").value.trim();
+    base.subproyecto = $("f-sub").value.trim();
+    base.fecha       = $("f-fecha").value || "";
+    base.horaLimite  = $("f-hora").value || "";
+    base.estimadoMin = Math.round((parseFloat($("f-est").value) || 0) * 60);
+    base.prioridad   = $("f-prio").value;
+    base.estado      = estado;
+    base.notas       = $("f-notas").value.trim();
+    var eraEditando = editando;
+    var previaFicha = eraEditando ? Object.assign({}, tareas[eraEditando]) : null;
+
+    // Corrección manual de la hora de inicio (antes de calcular la transición).
+    var inicioCorregido = 0;
+    if(eraEditando && anterior === "curso" && !$("f-inicio-wrap").hidden && $("f-inicio").value){
+      var ref = base.cursoDesde || Date.now();
+      var nuevoIni = horaEnDia(ref, $("f-inicio").value);
+      if(nuevoIni > Date.now()) nuevoIni -= 24*3600000;   // esa hora aún no llega: fue ayer
+      if(nuevoIni !== base.cursoDesde){
+        base.cursoDesde = nuevoIni;
+        if(!base.iniciado || nuevoIni < base.iniciado) base.iniciado = nuevoIni;
+        inicioCorregido = nuevoIni;
+      }
+    }
+
+    aplicarTransicion(base, anterior, estado);
+
+    // Corrección manual del total dedicado, cuando la ficha no está corriendo.
+    if(eraEditando && anterior !== "curso" && !$("f-real-wrap").hidden && $("f-real").value !== ""){
+      var msReal = Math.round((parseFloat($("f-real").value) || 0) * 3600000);
+      if(msReal >= 0) base.msEnCurso = msReal;
+    }
+
+    guardar(base);
+    trasTransicion(base, anterior, estado);
+
+    // Si el bloque del calendario sigue abierto, se mueve su inicio también.
+    if(inicioCorregido && base.tramoId && mcp){
+      mcp.callTool(CAL, "update_event", {
+        eventId: base.tramoId,
+        startTime: isoDe(new Date(inicioCorregido)),
+        timeZone: TZ,
+        notificationLevel: "NONE"
+      }).then(function(){
+        var c = Object.assign({}, tareas[base.id] || base);
+        c.tramoInicio = inicioCorregido;
+        guardar(c);
+      }).catch(function(){
+        toast("Cambié la ficha, pero no pude mover el inicio del bloque en el calendario.");
+      });
+    }
+
+    if(previaFicha) quizaPreguntarCierre(previaFicha, anterior, estado);
+    if(mcp) sincronizarAviso(base);
+    cerrar();
+    toast(eraEditando ? "Ficha actualizada" : "Ficha agregada a " + NOMBRE_COL[estado]);
+
+    // Si ya estaba en el calendario y cambió lo que el evento muestra, se mueve solo.
+    if(base.eventoId && !base.meetUrl &&
+       (base.fecha !== antesFecha || base.titulo !== antesTitulo || estado !== anterior)){
+      if(!base.fecha){
+        avisarCal("La ficha ya no tiene fecha, así que su evento sigue en el calendario en la fecha anterior. Quítalo desde la ficha si ya no aplica.");
+      } else {
+        sincronizarEvento(base);
+      }
+    }
+  });
+
+  $("f-drive-buscar").addEventListener("click", function(){
+    var b = $("f-drive-busca");
+    b.hidden = !b.hidden;
+    if(!b.hidden) $("f-drive-q").focus();
+  });
+  $("f-drive-quitar").addEventListener("click", function(){
+    if(!editando) return;
+    var t = tareas[editando];
+    if(!t) return;
+    if(t.driveUrl){
+      var copia = Object.assign({}, t);
+      copia.driveUrl = ""; copia.driveNombre = "";
+      guardar(copia);
+      renderBloqueDrive(copia);
+    } else if(t.proyecto && carpetas[t.proyecto]){
+      // Heredada: se quita la carpeta de todo el proyecto.
+      var nombre = carpetas[t.proyecto].nombre;
+      var sinEsa = descongelar(carpetas);
+      delete sinEsa[t.proyecto];
+      carpetas = sinEsa;
+      if(db) db.doc("config/carpetas").set(carpetas).catch(function(){
+        toast("No pude guardar el cambio.");
+      });
+      render();
+      renderBloqueDrive(tareas[editando] || t);
+      toast("“" + recortar(nombre, 24) + "” ya no es la carpeta de " + t.proyecto);
+    }
+  });
+  function lanzarBusquedaDrive(){
+    var q = $("f-drive-q").value;
+    if(!q.trim()) return;
+    var cont = $("f-drive-res");
+    cont.innerHTML = "";
+    var cargando = document.createElement("p");
+    cargando.className = "cal-nota";
+    cargando.textContent = "Buscando en tu Drive…";
+    cont.appendChild(cargando);
+    buscarEnDrive(q).then(function(files){
+      cont.innerHTML = "";
+      if(!files.length){
+        var n = document.createElement("p");
+        n.className = "cal-nota";
+        n.textContent = "Nada con ese nombre. Prueba con otra palabra o pega el enlace de la carpeta.";
+        cont.appendChild(n);
+        return;
+      }
+      files.forEach(function(f){
+        var b = document.createElement("button");
+        b.type = "button";
+        var ic = document.createElement("span");
+        ic.className = "ic"; ic.textContent = esCarpeta(f) ? "📁" : "📄";
+        var nm = document.createElement("span");
+        nm.className = "nm"; nm.textContent = f.title || "(sin nombre)";
+        var tp = document.createElement("span");
+        tp.className = "tp"; tp.textContent = esCarpeta(f) ? "carpeta" : "archivo";
+        b.appendChild(ic); b.appendChild(nm); b.appendChild(tp);
+        b.addEventListener("click", function(){ elegirDrive(f); });
+        cont.appendChild(b);
+      });
+    }).catch(function(e){
+      cont.innerHTML = "";
+      var n = document.createElement("p");
+      n.className = "cal-nota error";
+      n.textContent = msgErrorCal(e).replace("Google Calendar", "Google Drive");
+      cont.appendChild(n);
+    });
+  }
+  $("f-drive-go").addEventListener("click", lanzarBusquedaDrive);
+  $("f-drive-q").addEventListener("keydown", function(ev){
+    if(ev.key === "Enter"){ ev.preventDefault(); lanzarBusquedaDrive(); }
+  });
+
+  $("f-subs").addEventListener("click", function(){
+    if(!editando) return;
+    var id = editando;
+    if($("f-subs").dataset.modo === "sacar"){
+      cerrar();
+      desanidar(id);
+      return;
+    }
+    abiertas[id] = true;
+    foco = id;
+    cerrar();
+    render();
+  });
+  $("f-cancelar").addEventListener("click", cerrar);
+  $("f-proy").addEventListener("input", function(){ refrescarSubs($("f-proy")); });
+  ["f-fecha","f-hora","f-est"].forEach(function(id){
+    $(id).addEventListener("input", renderArranque);
+    $(id).addEventListener("change", renderArranque);
+  });
+  $("r-proy").addEventListener("input", function(){ refrescarSubs($("r-proy")); });
+
+  $("f-agendar").addEventListener("click", function(){
+    if(!editando) return;
+    var t = tareas[editando];
+    if(!t) return;
+    conBoton($("f-agendar"), function(){
+      return t.eventoId ? sincronizarEvento(t).then(function(){ renderBloqueCal(tareas[t.id] || t); })
+                        : agendarTarea(t);
+    });
+  });
+  $("f-quitar").addEventListener("click", function(){
+    if(!editando) return;
+    var t = tareas[editando];
+    if(!t) return;
+    conBoton($("f-quitar"), function(){ return quitarEvento(t); });
+  });
+
+  var dlgReu = $("dlg-reu");
+  // La siguiente media hora en punto, nunca una hora que ya pasó.
+  function proximaFranja(){
+    var d = new Date(Date.now() + 10*60000);
+    d.setSeconds(0, 0);
+    d.setMinutes(d.getMinutes() <= 30 ? 30 : 60);
+    return d;
+  }
+  function avisarSiPasado(){
+    var f = $("r-fecha").value, h = $("r-hora").value;
+    if(!f || !h){ $("r-nota").hidden = true; return; }
+    var cuando = new Date(f + "T" + h + ":00");
+    if(cuando.getTime() < Date.now() - 60000){
+      notaReunion("Ojo: esa hora ya pasó. La reunión se creará igual, pero quedará atrás en tu calendario.", false);
+    } else {
+      $("r-nota").hidden = true;
+    }
+  }
+  function abrirReunion(){
+    var franja = proximaFranja();
+    $("r-titulo").value = "";
+    $("r-proy").value = filtroProyecto || "";
+    $("r-sub").value = filtroSub || "";
+    refrescarSubs($("r-proy"));
+    $("r-fecha").value = franja.toLocaleDateString("en-CA");
+    $("r-hora").value = pad2(franja.getHours()) + ":" + pad2(franja.getMinutes());
+    $("r-dur").value = "60";
+    $("r-invitados").value = "";
+    $("r-meet").checked = true;
+    $("r-ficha").checked = true;
+    $("r-nota").hidden = true;
+    if(typeof dlgReu.showModal === "function") dlgReu.showModal(); else dlgReu.setAttribute("open","");
+    setTimeout(function(){ $("r-titulo").focus(); }, 30);
+  }
+  function cerrarReunion(){
+    if(typeof dlgReu.close === "function") dlgReu.close(); else dlgReu.removeAttribute("open");
+  }
+  $("reunion").addEventListener("click", abrirReunion);
+  $("r-cancelar").addEventListener("click", cerrarReunion);
+  // ---------- diálogo de curso ----------
+  var dlgCurso = $("dlg-curso");
+  var cursoEv = null;        // evento que se está configurando
+  var carpBorrador = null;   // carpeta elegida, aún sin guardar
+
+  function renderCarpCurso(){
+    var est = $("cu-carp-est"), ver = $("cu-carp-ver");
+    if(carpBorrador && carpBorrador.url){
+      est.textContent = "📁 " + carpBorrador.nombre;
+      est.className = "cal-est ok";
+      ver.hidden = false; ver.href = carpBorrador.url;
+    } else if(raizCursos && raizCursos.url){
+      est.textContent = "Se buscará dentro de " + raizCursos.nombre;
+      est.className = "cal-est";
+      ver.hidden = false; ver.href = raizCursos.url;
+    } else {
+      est.textContent = "Sin carpeta";
+      est.className = "cal-est";
+      ver.hidden = true;
+    }
+  }
+  function abrirCurso(ev, msg){
+    cursoEv = ev;
+    var c = cursoDe(ev) || {};
+    $("cu-titulo").textContent = ev.summary || "Curso";
+    $("cu-proy").value = c.proyecto || "";
+    $("cu-sub").value = c.subproyecto || "";
+    carpBorrador = (c.carpeta && c.carpeta.url) ? c.carpeta : null;
+    $("cu-carp-q").value = "";
+    $("cu-carp-res").innerHTML = "";
+    refrescarSubs($("cu-proy"));
+    renderCarpCurso();
+    if(msg) toast(msg);
+    if(typeof dlgCurso.showModal === "function") dlgCurso.showModal(); else dlgCurso.setAttribute("open","");
+  }
+  function cerrarCurso(){
+    if(typeof dlgCurso.close === "function") dlgCurso.close(); else dlgCurso.removeAttribute("open");
+    cursoEv = null; carpBorrador = null;
+  }
+  function guardarCursos(){
+    if(db) db.doc("config/cursos").set(cursos).catch(function(){
+      toast("No pude guardar los ajustes del curso.");
+    });
+  }
+  $("cu-proy").addEventListener("input", function(){ refrescarSubs($("cu-proy")); });
+  $("cu-cancelar").addEventListener("click", cerrarCurso);
+  $("cu-carp-go").addEventListener("click", function(){
+    pintarResultadosDrive($("cu-carp-res"), $("cu-carp-q").value, function(f){
+      if(!esCarpeta(f)){ toast("Elige una carpeta, no un archivo."); return; }
+      carpBorrador = {id: f.id || "", url: f.viewUrl || "", nombre: f.title || "Carpeta"};
+      $("cu-carp-res").innerHTML = "";
+      $("cu-carp-q").value = "";
+      renderCarpCurso();
+    });
+  });
+  $("cu-carp-q").addEventListener("keydown", function(ev){
+    if(ev.key === "Enter"){ ev.preventDefault(); $("cu-carp-go").click(); }
+  });
+  $("cu-limpiar").addEventListener("click", function(){
+    if(!cursoEv) return;
+    var sinCurso = descongelar(cursos);
+    delete sinCurso[claveCurso(cursoEv)];
+    cursos = sinCurso;
+    guardarCursos();
+    cerrarCurso();
+    renderAgenda();
+    toast("Ajustes quitados de ese curso");
+  });
+  $("form-curso").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    try{
+      if(!cursoEv){ toast("Se perdió la referencia del curso; vuelve a abrirlo."); return; }
+      var k = claveCurso(cursoEv);
+      if(!k){ toast("Ese evento no tiene nombre con el que identificarlo."); return; }
+      var nuevo = descongelar(cursos);
+      nuevo[k] = {
+        titulo: cursoEv.summary || "",
+        proyecto: $("cu-proy").value.trim(),
+        subproyecto: $("cu-sub").value.trim(),
+        carpeta: carpBorrador || null
+      };
+      cursos = nuevo;
+      guardarCursos();
+      var nombreEv = cursoEv.summary || "el curso";
+      cerrarCurso();
+      renderAgenda();
+      toast("Guardado para todas las sesiones de " + recortar(nombreEv, 26));
+    }catch(e){
+      // Nunca más fallar en silencio.
+      toast("No pude guardar: " + (e && e.message ? e.message : "error inesperado"));
+    }
+  });
+
+  var dlgCfg = $("dlg-cfg");
+  function renderCarpetaNotas(){
+    var est = $("c-notas-est"), ver = $("c-notas-ver");
+    if(raizCursos && raizCursos.url){
+      est.textContent = "📁 " + raizCursos.nombre;
+      est.className = "cal-est ok";
+      ver.hidden = false; ver.href = raizCursos.url;
+    } else {
+      est.textContent = "Sin elegir";
+      est.className = "cal-est";
+      ver.hidden = true;
+    }
+  }
+  function abrirAjustes(msg){
+    $("c-excluir").value = excluir.join("\n");
+    $("c-notas-res").innerHTML = "";
+    $("c-notas-q").value = "";
+    renderCarpetaNotas();
+    if(msg) toast(msg);
+    if(typeof dlgCfg.showModal === "function") dlgCfg.showModal(); else dlgCfg.setAttribute("open","");
+    if(msg) setTimeout(function(){ $("c-notas-q").focus(); }, 40);
+  }
+  $("cfg-agenda").addEventListener("click", function(){ abrirAjustes(); });
+  $("dia-ant").addEventListener("click", function(){ navegar(-1); });
+  $("dia-sig").addEventListener("click", function(){ navegar(1); });
+  $("dia-hoy").addEventListener("click", function(){ irADia(0); });
+  Array.prototype.forEach.call(document.querySelectorAll(".vistas button"), function(b){
+    b.addEventListener("click", function(){ cambiarVista(b.dataset.vista); });
+  });
+
+  function buscarCarpetaNotas(){
+    pintarResultadosDrive($("c-notas-res"), $("c-notas-q").value, function(f){
+      if(!esCarpeta(f)){
+        toast("Elige una carpeta, no un archivo: ahí se guardarán las notas.");
+        return;
+      }
+      raizCursos = {id: f.id || "", url: f.viewUrl || "", nombre: f.title || "Carpeta"};
+      if(db) db.doc("config/preferencias").set({
+        registrarTiempo: registrarTiempo, excluir: excluir, raizCursos: raizCursos
+      }).catch(function(){ toast("No pude guardar la carpeta."); });
+      $("c-notas-res").innerHTML = "";
+      $("c-notas-q").value = "";
+      renderCarpetaNotas();
+      toast("Buscaré las carpetas de tus cursos dentro de " + recortar(raizCursos.nombre, 24));
+    });
+  }
+  $("c-notas-go").addEventListener("click", buscarCarpetaNotas);
+  $("c-notas-q").addEventListener("keydown", function(ev){
+    if(ev.key === "Enter"){ ev.preventDefault(); buscarCarpetaNotas(); }
+  });
+  $("c-cancelar").addEventListener("click", function(){
+    if(typeof dlgCfg.close === "function") dlgCfg.close(); else dlgCfg.removeAttribute("open");
+  });
+  $("form-cfg").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    excluir = $("c-excluir").value.split("\n")
+      .map(function(s){ return s.trim(); })
+      .filter(function(s){ return s.length; });
+    if(db) db.doc("config/preferencias").set({
+      registrarTiempo: registrarTiempo, excluir: excluir, raizCursos: raizCursos
+    }).catch(function(){ toast("No pude guardar la lista."); });
+    if(typeof dlgCfg.close === "function") dlgCfg.close(); else dlgCfg.removeAttribute("open");
+    renderAgenda();
+    toast("Lista actualizada");
+  });
+
+  $("r-fecha").addEventListener("change", avisarSiPasado);
+  $("r-hora").addEventListener("change", avisarSiPasado);
+
+  $("chk-registro").addEventListener("change", function(){
+    registrarTiempo = $("chk-registro").checked;
+    if(db) db.doc("config/preferencias").set({
+      registrarTiempo: registrarTiempo, excluir: excluir, raizCursos: raizCursos
+    }).catch(function(){ toast("No pude guardar esa preferencia."); });
+    if(registrarTiempo){
+      var corriendo = lista().filter(function(t){ return t.estado === "curso" && !t.tramoId; });
+      conciliarTramos();
+      toast(corriendo.length
+        ? "Anotando; los bloques arrancan a la hora en que pusiste cada ficha En curso"
+        : "Listo: lo que pongas En curso quedará anotado en tu calendario");
+    } else {
+      lista().filter(function(t){ return t.tramoId; })
+        .forEach(function(t){ cerrarTramo(t).catch(function(){}); });
+      toast("Dejo de anotar. Los bloques ya creados se quedan como están.");
+    }
+    renderRegistro();
+  });
+  $("form-reu").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var b = $("r-crear");
+    var previo = b.textContent;
+    b.disabled = true; b.textContent = "Creando…";
+    crearReunion().catch(function(e){
+      notaReunion(msgErrorCal(e), true);
+    }).then(function(){
+      b.disabled = false; b.textContent = previo;
+    });
+  });
+  $("f-borrar").addEventListener("click", function(){
+    if(editando){ var id = editando; cerrar(); borrar(id); }
+  });
+  $("nueva").addEventListener("click", function(){ abrir(null,"pendiente"); });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-add]"), function(b){
+    b.addEventListener("click", function(){ abrir(null, b.dataset.add); });
+  });
+  ["todas","venc","pronto","sinf"].forEach(function(v){
+    $("t-"+v).addEventListener("click", function(){
+      filtroVista = (filtroVista === v && v !== "todas") ? "todas" : v;
+      render();
+    });
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key === "n" && !ev.metaKey && !ev.ctrlKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !dlg.open){
+      ev.preventDefault(); abrir(null,"pendiente");
+    }
+  });
+
+  // ---------- Google Calendar ----------
+  function pad2(n){ return (n<10?"0":"") + n; }
+  function isoLocal(fechaISO, hora){
+    var d = new Date(fechaISO + "T" + hora);
+    if(isNaN(d)) return fechaISO + "T" + hora;
+    var off = -d.getTimezoneOffset();
+    var signo = off < 0 ? "-" : "+";
+    var abs = Math.abs(off);
+    return fechaISO + "T" + hora + signo + pad2(Math.floor(abs/60)) + ":" + pad2(abs%60);
+  }
+  function diaSiguiente(fechaISO){
+    var d = new Date(fechaISO + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString("en-CA");
+  }
+  function rotulo(t){
+    if(!t.proyecto) return "";
+    return t.proyecto + (t.subproyecto ? " › " + t.subproyecto : "");
+  }
+  function contexto(t){
+    var l = [];
+    if(rotulo(t)) l.push(rotulo(t));
+    l.push("Prioridad: " + NOMBRE_PRIO[t.prioridad||"media"]);
+    if(t.notas) l.push("", t.notas);
+    l.push("", "Agendado desde tu Fichero de Tareas.");
+    return l.join("\n");
+  }
+
+  // Cada código de error tiene un arreglo distinto; decirlo ahorra adivinanzas.
+  function msgErrorCal(e){
+    var c = e && e.code;
+    if(c === "needs_reauth")
+      return "Tu conexión con Google Calendar caducó. Reconéctala en claude.ai → Configuración → Conectores y vuelve a intentarlo.";
+    if(c === "server_not_connected")
+      return "No hay un Google Calendar conectado a tu cuenta. Agrégalo en claude.ai → Configuración → Conectores.";
+    if(c === "selection_required")
+      return "Tienes más de un Google Calendar conectado. Claude te va a preguntar cuál usar: elige uno y repite la acción.";
+    if(c === "not_in_manifest")
+      return "Esta página no tiene permiso para usar tu calendario. Recarga y acepta el acceso a Google Calendar cuando te lo pida.";
+    if(c === "blocked_by_policy" || c === "approval_required")
+      return "Esta acción sobre el calendario está bloqueada por la política de tu organización.";
+    if(c === "tool_error")
+      return "Google Calendar rechazó la operación" + (e.message ? ": " + e.message : ".");
+    if(c === "server_unavailable" || c === "upstream_error" || c === "rate_limited")
+      return "Google Calendar no respondió. Espera unos segundos y vuelve a intentarlo; revisa el calendario antes de repetir, por si el evento sí se creó.";
+    if(c === "cancelled") return "Operación cancelada.";
+    if(c === "not_granted" || c === "capability_disabled" || c === "capability_removed")
+      return "Esta vista no puede usar el calendario. Abre el tablero desde su enlace en claude.ai.";
+    if(c === "consent_required")
+      return "Falta autorizar Google Calendar para esta página. Vuelve a intentarlo y acepta el aviso.";
+    return "No se pudo completar la operación en el calendario.";
+  }
+  function avisarCal(texto, esError){
+    var n = $("f-cal-nota");
+    if(!n) return;
+    n.textContent = texto;
+    n.className = "cal-nota" + (esError ? " error" : "");
+    n.hidden = false;
+  }
+  function notaReunion(texto, esError){
+    var n = $("r-nota");
+    n.textContent = texto;
+    n.className = "cal-nota" + (esError ? " error" : "");
+    n.hidden = false;
+  }
+
+  function renderBloqueCal(t){
+    var caja = $("f-cal");
+    $("f-cal-nota").hidden = true;
+    if(!t || !mcp){ caja.hidden = true; return; }
+    caja.hidden = false;
+    var est = $("f-cal-est"), ver = $("f-ver-evento"),
+        quitar = $("f-quitar"), ag = $("f-agendar");
+    ag.disabled = false;
+    if(t.eventoId){
+      ver.hidden = false; ver.href = t.eventoLink || "#";
+      quitar.hidden = false;
+      if(t.meetUrl){
+        est.textContent = "Reunión con Meet"; est.className = "cal-est ok";
+        ag.hidden = true;
+      } else if(t.fecha && t.eventoFecha && t.fecha !== t.eventoFecha){
+        est.textContent = "Evento el " + t.eventoFecha + ", ficha el " + t.fecha;
+        est.className = "cal-est desfase";
+        ag.hidden = false; ag.textContent = "Mover evento al " + t.fecha;
+      } else {
+        est.textContent = "Agendada" + (t.eventoFecha ? " el " + t.eventoFecha : "");
+        est.className = "cal-est ok";
+        ag.hidden = true;
+      }
+    } else {
+      ver.hidden = true; quitar.hidden = true;
+      ag.hidden = false; ag.textContent = "Agendar vencimiento";
+      if(t.fecha){
+        est.textContent = "Sin agendar"; est.className = "cal-est";
+      } else {
+        est.textContent = "Ponle fecha para agendarla"; est.className = "cal-est";
+        ag.disabled = true;
+      }
+    }
+  }
+
+  async function conBoton(boton, fn){
+    var previo = boton.textContent;
+    boton.disabled = true; boton.textContent = "…";
+    try{ await fn(); }
+    catch(e){ avisarCal(msgErrorCal(e), true); }
+    finally{ boton.disabled = false; boton.textContent = previo; }
+  }
+
+  function cuerpoVencimiento(t){
+    return {
+      summary: (t.estado === "hecho" ? "✓ " : "") + t.titulo,
+      description: contexto(t),
+      startTime: isoLocal(t.fecha, "00:00:00"),
+      endTime: isoLocal(diaSiguiente(t.fecha), "00:00:00"),
+      allDay: true,
+      timeZone: TZ
+    };
+  }
+
+  async function agendarTarea(t){
+    if(!mcp || !t.fecha) return;
+    var input = cuerpoVencimiento(t);
+    input.availability = "AVAILABILITY_FREE";
+    input.overrideReminders = [
+      {method:"popup", minutes:360},   // la víspera, 6 p.m.
+      {method:"popup", minutes:3240}   // tres días antes, 6 p.m.
+    ];
+    var res = await mcp.callTool(CAL, "create_event", input);
+    var ev = res && res.payload;
+    if(!ev || !ev.id) throw {code:"upstream_error", message:"El calendario no devolvió el evento."};
+    var copia = Object.assign({}, tareas[t.id] || t);
+    copia.eventoId = ev.id;
+    copia.eventoLink = ev.htmlLink || "";
+    copia.eventoFecha = t.fecha;
+    guardar(copia);
+    renderBloqueCal(copia);
+    avisarCal("Listo. Te avisará tres días antes y la víspera, ambas a las 6 p.m.", false);
+  }
+
+  async function sincronizarEvento(t){
+    if(!mcp || !t.eventoId || !t.fecha) return;
+    var input = cuerpoVencimiento(t);
+    input.eventId = t.eventoId;
+    input.notificationLevel = "NONE";
+    try{
+      await mcp.callTool(CAL, "update_event", input);
+      var copia = Object.assign({}, tareas[t.id] || t);
+      copia.eventoFecha = t.fecha;
+      guardar(copia);
+      toast("Evento actualizado en el calendario");
+    }catch(e){
+      toast("La ficha se guardó, pero el calendario no: " + msgErrorCal(e));
+    }
+  }
+
+  async function quitarEvento(t){
+    if(!mcp || !t.eventoId) return;
+    var limpiar = function(aviso){
+      var copia = Object.assign({}, tareas[t.id] || t);
+      copia.eventoId = ""; copia.eventoLink = ""; copia.eventoFecha = ""; copia.meetUrl = "";
+      guardar(copia);
+      renderBloqueCal(copia);
+      avisarCal(aviso, false);
+    };
+    try{
+      await mcp.callTool(CAL, "delete_event", {
+        eventId: t.eventoId,
+        notificationLevel: t.meetUrl ? "ALL" : "NONE"
+      });
+      limpiar(t.meetUrl ? "Reunión cancelada. Se avisó a los invitados." : "Evento eliminado del calendario.");
+    }catch(e){
+      if(e && e.code === "tool_error"){
+        limpiar("Ese evento ya no existía en el calendario; desvinculé la ficha.");
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  // ---------- agenda del día ----------
+  var agenda = {eventos:null, error:null, sello:0};
+  var diaAgenda = 0;        // desplazamiento en días respecto a hoy
+  var vistaAgenda = "dia";  // dia | semana | mes
+
+  function masDias(iso, n){
+    var d = new Date(iso + "T12:00:00");
+    d.setDate(d.getDate() + n);
+    return d.toLocaleDateString("en-CA");
+  }
+  function fechaAgenda(){ return masDias(hoyISO(), diaAgenda); }
+  function lunesDe(iso){
+    var d = new Date(iso + "T12:00:00");
+    var dow = (d.getDay() + 6) % 7;   // 0 = lunes
+    return masDias(iso, -dow);
+  }
+  function primeroDeMes(iso){ return iso.slice(0,8) + "01"; }
+  function ultimoDeMes(iso){
+    var d = new Date(iso + "T12:00:00");
+    d.setMonth(d.getMonth() + 1, 0);
+    return d.toLocaleDateString("en-CA");
+  }
+  function rangoVista(){
+    var f = fechaAgenda();
+    if(vistaAgenda === "semana"){ var l = lunesDe(f); return {desde: l, hasta: masDias(l, 6)}; }
+    if(vistaAgenda === "mes"){
+      var p = primeroDeMes(f), u = ultimoDeMes(f);
+      // Se piden también los días de relleno de la rejilla.
+      return {desde: lunesDe(p), hasta: masDias(lunesDe(p), 41), ini: p, fin: u};
+    }
+    return {desde: f, hasta: f};
+  }
+  function mayus(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+  function etiquetaDia(){
+    var f = fechaAgenda();
+    if(vistaAgenda === "mes"){
+      return mayus(new Date(f + "T12:00:00").toLocaleDateString("es-PE", {month:"long", year:"numeric"}));
+    }
+    if(vistaAgenda === "semana"){
+      var r = rangoVista();
+      var a = new Date(r.desde + "T12:00:00"), b = new Date(r.hasta + "T12:00:00");
+      var mesA = a.toLocaleDateString("es-PE", {month:"short"});
+      var mesB = b.toLocaleDateString("es-PE", {month:"short"});
+      return a.getDate() + (mesA === mesB ? "" : " " + mesA) + "–" + b.getDate() + " " + mesB;
+    }
+    if(diaAgenda === 0) return "Hoy";
+    if(diaAgenda === 1) return "Mañana";
+    if(diaAgenda === -1) return "Ayer";
+    return mayus(new Date(f + "T12:00:00")
+      .toLocaleDateString("es-PE", {weekday:"long", day:"numeric", month:"long"}));
+  }
+  function fechaDeEvento(ev){
+    if(ev.start && ev.start.dateTime) return new Date(ev.start.dateTime).toLocaleDateString("en-CA");
+    if(ev.start && ev.start.date) return String(ev.start.date).slice(0,10);
+    return "";
+  }
+
+  function iniciarAgenda(){
+    if(!mcp || typeof mcp.watchTool !== "function"){ return; }
+    var f = hoyISO();
+    mcp.watchTool(CAL, "list_events", {
+      startTime: isoLocal(f, "00:00:00"),
+      endTime: isoLocal(f, "23:59:59"),
+      orderBy: "startTime",
+      pageSize: 40,
+      timeZone: TZ
+    }, function(ev){
+      if(diaAgenda !== 0 || vistaAgenda !== "dia") return;   // se está mirando otra cosa
+      if(ev.type === "error"){
+        agenda.error = ev.error;
+        if(ev.error && (ev.error.code === "needs_reauth" || ev.error.code === "server_not_connected" ||
+                        ev.error.code === "not_in_manifest")) agenda.eventos = null;
+      } else {
+        var p = ev.result && ev.result.payload;
+        agenda.eventos = (p && p.events) || [];
+        agenda.error = null;
+        agenda.sello = (ev.result.cache && ev.result.cache.storedAt) || Date.now();
+      }
+      renderAgenda();
+    }, {refetchInterval: 900000});
+  }
+
+  // El rango visible se pide a demanda, sin dejar suscripciones abiertas.
+  async function cargarDia(){
+    if(!mcp) return;
+    var r = rangoVista();
+    agenda = {eventos: null, error: null, sello: 0};
+    renderAgenda();
+    try{
+      var acumulado = [], token = null, vueltas = 0;
+      do {
+        var input = {
+          startTime: isoLocal(r.desde, "00:00:00"),
+          endTime: isoLocal(r.hasta, "23:59:59"),
+          orderBy: "startTime",
+          pageSize: vistaAgenda === "dia" ? 40 : 250,
+          timeZone: TZ
+        };
+        if(token) input.pageToken = token;
+        var res = await mcp.callTool(CAL, "list_events", input);
+        var p = res && res.payload;
+        acumulado = acumulado.concat((p && p.events) || []);
+        token = (p && p.nextPageToken) || null;
+        vueltas++;
+      } while(token && vueltas < 3 && vistaAgenda !== "dia");
+      agenda.eventos = acumulado;
+      agenda.sello = Date.now();
+    }catch(e){
+      agenda.error = e;
+    }
+    renderAgenda();
+  }
+
+  function irADia(offset){
+    diaAgenda = offset;
+    suscribirAsistencia();
+    cargarDia();
+  }
+  // ‹ y › avanzan según la vista: un día, una semana o un mes.
+  function navegar(signo){
+    if(vistaAgenda === "semana"){ irADia(diaAgenda + 7*signo); return; }
+    if(vistaAgenda === "mes"){
+      var d = new Date(fechaAgenda() + "T12:00:00");
+      var dia = d.getDate();
+      d.setMonth(d.getMonth() + signo, 1);
+      var ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(dia, ultimo));
+      var destino = d.toLocaleDateString("en-CA");
+      var hoy = new Date(hoyISO() + "T12:00:00");
+      irADia(Math.round((d - hoy) / 86400000));
+      return;
+    }
+    irADia(diaAgenda + signo);
+  }
+  function cambiarVista(v){
+    vistaAgenda = v;
+    Array.prototype.forEach.call(document.querySelectorAll(".vistas button"), function(b){
+      b.setAttribute("aria-pressed", String(b.dataset.vista === v));
+    });
+    suscribirAsistencia();
+    cargarDia();
+  }
+
+  function horaDe(punta){
+    if(!punta) return null;
+    if(punta.dateTime) return new Date(punta.dateTime);
+    return null; // evento de día completo: no ocupa horas
+  }
+  function ocupa(ev){
+    if(ev.availability === "AVAILABILITY_FREE") return false;
+    if(ev.transparency === "transparent") return false;
+    if(ev.status === "cancelled") return false;
+    return !!(ev.start && ev.start.dateTime);
+  }
+  function hhmm(d){ return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+
+  // ---------- asistencia ----------
+  var EXCLUIR_POR_DEFECTO = ["dormir","almuerzo","cena","camino","alistarme"];
+  var excluir = EXCLUIR_POR_DEFECTO.slice();
+  var asistencia = {};
+  var ESTADOS = {asisti:"Asistí", falte:"No fui", cancelado:"Se canceló", tarea:"Es una ficha"};
+
+  function normalizar(s){
+    return String(s||"").toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+  function idEvento(ev){
+    return String(ev.id||"").replace(/[^A-Za-z0-9_\-.~:@+]/g, "-").slice(0,180) || "sin-id";
+  }
+  // Un evento se sigue si tiene hora, no es rutina y no lo creó este tablero.
+  function seguido(ev){
+    if(!ev.start || !ev.start.dateTime) return false;
+    if(ev.status === "cancelled") return false;
+    if(ev.availability === "AVAILABILITY_FREE" || ev.transparency === "transparent") return false;
+    var t = normalizar(ev.summary);
+    if(t.indexOf("⏱") === 0 || (ev.summary||"").indexOf("⏱") === 0) return false;
+    for(var i=0;i<excluir.length;i++){
+      var p = normalizar(excluir[i]).trim();
+      if(p && t.indexOf(p) !== -1) return false;
+    }
+    return true;
+  }
+
+  function minutosProgramados(ev){
+    var i = horaDe(ev.start), f = horaDe(ev.end);
+    if(!i || !f) return 0;
+    return Math.round((f - i) / 60000);
+  }
+  function guardarMarca(id, doc){
+    asistencia[id] = doc;
+    renderAgenda();
+    if(!db){ toast("Sin almacén: no pude guardar la asistencia."); return; }
+    db.collection("asistencia").doc(id).set(doc).catch(function(){
+      toast("No pude guardar la asistencia.");
+    });
+  }
+
+  // `opts`: entrada/salida en ms y motivo del final ("normal" | "antes" | "me-fui").
+  var unsubAsist = null;
+  function suscribirAsistencia(){
+    if(!db) return;
+    if(unsubAsist){ try{ unsubAsist(); }catch(e){} unsubAsist = null; }
+    var r = rangoVista();
+    var q = db.collection("asistencia");
+    q = (r.desde === r.hasta)
+      ? q.where("fecha", "==", r.desde)
+      : q.where("fecha", ">=", r.desde).where("fecha", "<=", r.hasta);
+    unsubAsist = q.onSnapshot(function(snap){
+      var v = {};
+      snap.docs.forEach(function(d){ v[d.id] = descongelar(d.data()); });
+      asistencia = v;
+      renderAgenda();
+    }, function(){ /* sin marcas para ese día */ });
+  }
+
+  function marcar(ev, estado, opts){
+    opts = opts || {};
+    var id = idEvento(ev);
+    var i = horaDe(ev.start), f = horaDe(ev.end);
+    var previo = asistencia[id] || {};
+    var c = cursoDe(ev);
+    var doc = {
+      eventoId: ev.id || "",
+      titulo: ev.summary || "",
+      fecha: fechaAgenda(),
+      inicio: (ev.start && ev.start.dateTime) || "",
+      fin: (ev.end && ev.end.dateTime) || "",
+      estado: estado,
+      proyecto: c ? (c.proyecto || "") : "",
+      subproyecto: c ? (c.subproyecto || "") : "",
+      programadoMin: minutosProgramados(ev),
+      entrada: opts.entrada !== undefined ? opts.entrada : (previo.entrada || 0),
+      salida: opts.salida !== undefined ? opts.salida : (previo.salida || 0),
+      motivoFin: opts.motivoFin || previo.motivoFin || "",
+      marcado: Date.now()
+    };
+    if(estado !== "asisti"){ doc.entrada = 0; doc.salida = 0; doc.motivoFin = ""; }
+    doc.realMin = (doc.entrada && doc.salida) ? Math.max(0, Math.round((doc.salida - doc.entrada)/60000)) : 0;
+    guardarMarca(id, doc);
+  }
+
+  // Asistencia declarada después, sin haber marcado en vivo.
+  // ---------- ajustes por curso ----------
+  var cursos = {};   // clave normalizada del título -> {titulo, proyecto, subproyecto, carpeta}
+
+  function claveCurso(ev){
+    return normalizar(ev.summary || "").trim().replace(/\s+/g, " ").slice(0, 120);
+  }
+  function cursoDe(ev){
+    var k = claveCurso(ev);
+    return k && cursos[k] ? cursos[k] : null;
+  }
+  function rotuloCurso(c){
+    if(!c || !c.proyecto) return "";
+    return c.proyecto + (c.subproyecto ? " › " + c.subproyecto : "");
+  }
+
+  // ---------- notas de clase ----------
+  var raizCursos = null;   // carpeta madre donde viven las carpetas de los cursos
+
+  // "Gerencia Financiera - 217" y "GERENCIA FINANCIERA" son el mismo curso.
+  function limpiaNombreCurso(s){
+    return normalizar(s).replace(/\s*[-–—]\s*\d+\s*$/, "").replace(/\s+/g, " ").trim();
+  }
+  function mejorCoincidencia(nombre, carpetas_){
+    var objetivo = limpiaNombreCurso(nombre);
+    if(!objetivo) return null;
+    var exacta = null, parcial = null;
+    carpetas_.forEach(function(f){
+      var n = limpiaNombreCurso(f.title);
+      if(!n) return;
+      if(n === objetivo){ exacta = f; return; }
+      if(n.indexOf(objetivo) !== -1 || objetivo.indexOf(n) !== -1){
+        // Entre varias parciales gana la más específica: "econometría iii" sobre "econometría i".
+        if(!parcial || limpiaNombreCurso(f.title).length > limpiaNombreCurso(parcial.title).length) parcial = f;
+      }
+    });
+    return exacta || parcial;
+  }
+  function pareceNotas(titulo){
+    var n = normalizar(titulo);
+    return n.indexOf("nota") !== -1 || n.indexOf("apunte") !== -1;
+  }
+  async function hijasDe(id){
+    var res = await mcp.callTool(DRIVE, "search_files", {
+      query: "parentId = '" + id + "' and mimeType = 'application/vnd.google-apps.folder'",
+      pageSize: 30,
+      excludeContentSnippets: true
+    });
+    var p = res && res.payload;
+    return (p && p.files) || [];
+  }
+
+  // Busca la carpeta de notas del curso dentro de la raíz. Devuelve
+  // {carpeta} o {error} con el motivo, sin inventarse nada.
+  async function resolverCarpetaCurso(ev){
+    if(!raizCursos || !raizCursos.id) return {error: "sin-raiz"};
+    var cursosDrive = await hijasDe(raizCursos.id);
+    var carp = mejorCoincidencia(ev.summary || "", cursosDrive);
+    if(!carp) return {error: "sin-curso"};
+
+    var nivel1 = await hijasDe(carp.id);
+    var destino = null;
+    for(var i = 0; i < nivel1.length; i++){
+      if(pareceNotas(nivel1[i].title)){ destino = nivel1[i]; break; }
+    }
+    if(!destino){
+      // Un nivel más abajo (el caso "Clases › Notas de Clase").
+      for(var j = 0; j < Math.min(nivel1.length, 4) && !destino; j++){
+        var nietas = await hijasDe(nivel1[j].id);
+        for(var k = 0; k < nietas.length; k++){
+          if(pareceNotas(nietas[k].title)){ destino = nietas[k]; break; }
+        }
+      }
+    }
+    if(!destino) return {error: "sin-notas", curso: carp.title || "",
+                         sugerida: {id: carp.id, url: carp.viewUrl || "", nombre: carp.title || "Carpeta"}};
+    return {carpeta: {id: destino.id, url: destino.viewUrl || "", nombre: destino.title || "Carpeta"},
+            dentroDe: carp.title || ""};
+  }
+
+  function tituloNota(ev){
+    var i = horaDe(ev.start);
+    var f = i ? i.toLocaleDateString("en-CA") : hoyISO();
+    return (ev.summary || "Sesión").trim() + " — " + f;
+  }
+  function cuerpoNota(ev){
+    var i = horaDe(ev.start), f = horaDe(ev.end);
+    var cuando = i ? i.toLocaleDateString("es-PE", {weekday:"long", day:"numeric", month:"long", year:"numeric"}) : "";
+    if(i && f) cuando += " · " + hhmm(i) + "–" + hhmm(f);
+    return (ev.summary || "Sesión") + "\n" + cuando + "\n\n" +
+           "NOTAS\n\n\n\n" +
+           "PENDIENTES\n\n\n\n" +
+           "DUDAS\n\n\n";
+  }
+
+  // Pone (o mueve, o quita) el aviso de "empieza ya" en el calendario.
+  async function sincronizarAviso(t){
+    if(!mcp) return;
+    var viva = tareas[t.id] || t;
+    var l = limiteArranque(t);
+
+    if(!l || t.estado === "hecho"){
+      if(viva.avisoId){
+        try{ await mcp.callTool(CAL, "delete_event", {eventId: viva.avisoId, notificationLevel:"NONE"}); }
+        catch(e){ /* puede que ya no exista */ }
+        var limpio = Object.assign({}, tareas[t.id] || t);
+        limpio.avisoId = ""; limpio.avisoLink = ""; limpio.avisoHora = "";
+        guardar(limpio);
+      }
+      return;
+    }
+
+    var iso = isoDe(l);
+    if(viva.avisoId && viva.avisoHora === iso) return;   // ya está donde toca
+
+    var horas = Math.round(t.estimadoMin * HOLGURA / 6) / 10;
+    var cuerpo = {
+      summary: "▶ Empezar: " + t.titulo,
+      description: "Estimaste " + (Math.round(t.estimadoMin/6)/10) + " h y el tablero reserva " +
+                   horas + " h (holgura ×" + HOLGURA + ").\nSe entrega el " + t.fecha +
+                   (t.horaLimite ? " a las " + t.horaLimite : "") + "." +
+                   (rotulo(t) ? "\n" + rotulo(t) : ""),
+      startTime: iso,
+      endTime: isoDe(new Date(l.getTime() + 30*60000)),
+      timeZone: TZ,
+      availability: "AVAILABILITY_FREE",
+      colorId: "6",
+      overrideReminders: [{method:"popup", minutes:0}, {method:"popup", minutes:30}]
+    };
+    try{
+      var res;
+      if(viva.avisoId){
+        cuerpo.eventId = viva.avisoId;
+        cuerpo.notificationLevel = "NONE";
+        res = await mcp.callTool(CAL, "update_event", cuerpo);
+      } else {
+        res = await mcp.callTool(CAL, "create_event", cuerpo);
+      }
+      var ev2 = res && res.payload;
+      var copia = Object.assign({}, tareas[t.id] || t);
+      copia.avisoId = (ev2 && ev2.id) || viva.avisoId || "";
+      copia.avisoLink = (ev2 && ev2.htmlLink) || viva.avisoLink || "";
+      copia.avisoHora = iso;
+      guardar(copia);
+    }catch(e){
+      toast("No pude poner el aviso en el calendario. " + msgErrorCal(e));
+    }
+  }
+
+  async function crearNota(ev, boton){
+    if(!mcp) return;
+    var id = idEvento(ev);
+    var previo = asistencia[id] || {};
+    if(previo.notasUrl) return;
+    var c = cursoDe(ev);
+    var destino = (c && c.carpeta && c.carpeta.id) ? c.carpeta : null;
+    var prev = boton.textContent;
+    boton.disabled = true; boton.textContent = "Buscando…";
+    try{
+      if(!destino){
+        var r = await resolverCarpetaCurso(ev);
+        if(r.error === "sin-raiz"){
+          abrirAjustes("Dime primero en qué carpeta de Drive están tus cursos.");
+          return;
+        }
+        if(r.error === "sin-curso"){
+          abrirCurso(ev, "No encontré la carpeta de este curso dentro de " +
+                         raizCursos.nombre + ". Elígela a mano.");
+          return;
+        }
+        if(r.error === "sin-notas"){
+          // La carpeta del curso existe pero no tiene dónde guardar apuntes.
+          abrirCurso(ev, "Encontré “" + r.curso + "”, pero no tiene carpeta de notas. Elige dónde guardarlas.");
+          if(r.sugerida) { carpBorrador = r.sugerida; renderCarpCurso(); }
+          return;
+        }
+        destino = r.carpeta;
+        // Se recuerda para que la próxima vez no haya que buscar.
+        var k = claveCurso(ev);
+        var mapa = descongelar(cursos);
+        mapa[k] = Object.assign({}, mapa[k] || {titulo: ev.summary || ""}, {carpeta: destino});
+        cursos = mapa;
+        guardarCursos();
+      }
+      boton.textContent = "Creando…";
+      var res = await mcp.callTool(DRIVE, "create_file", {
+        title: tituloNota(ev),
+        textContent: cuerpoNota(ev),
+        contentMimeType: "text/plain",
+        parentId: destino.id
+      });
+      var doc = res && res.payload;
+      if(!doc || !doc.viewUrl) throw {code:"upstream_error", message:"Drive no devolvió el documento."};
+      var marca = Object.assign({}, previo, {
+        eventoId: ev.id || "", titulo: ev.summary || "", fecha: fechaAgenda(),
+        inicio: (ev.start && ev.start.dateTime) || "", fin: (ev.end && ev.end.dateTime) || "",
+        estado: previo.estado || "asisti",
+        notasUrl: doc.viewUrl, notasId: doc.id || "",
+        marcado: previo.marcado || Date.now()
+      });
+      if(!previo.estado){
+        marca.entrada = Date.now(); marca.salida = 0; marca.motivoFin = "";
+        marca.programadoMin = minutosProgramados(ev);
+      }
+      guardarMarca(id, marca);
+      aviso("Notas de " + (ev.summary || "la sesión") + " creadas en " + destino.nombre + ".",
+            doc.viewUrl, "Abrir el documento");
+      toast("Documento creado — ya tienes el botón 📝 Notas en la fila");
+    }catch(e){
+      toast(msgErrorCal(e).replace("Google Calendar", "Google Drive"));
+    }finally{
+      boton.disabled = false; boton.textContent = prev;
+    }
+  }
+
+  function marcarCompleta(ev){
+    var i = horaDe(ev.start), f = horaDe(ev.end);
+    marcar(ev, "asisti", {
+      entrada: i ? i.getTime() : 0,
+      salida: f ? f.getTime() : 0,
+      motivoFin: "normal"
+    });
+  }
+  function marcarConFin(ev, horaTexto, motivo){
+    var i = horaDe(ev.start);
+    if(!i || !horaTexto) return;
+    var previo = asistencia[idEvento(ev)] || {};
+    var d = new Date(i.getTime());
+    var p = horaTexto.split(":");
+    d.setHours(parseInt(p[0],10) || 0, parseInt(p[1],10) || 0, 0, 0);
+    if(d < i) d = new Date(i.getTime());
+    marcar(ev, "asisti", {
+      entrada: previo.entrada || i.getTime(),   // respeta la entrada ya registrada
+      salida: d.getTime(),
+      motivoFin: motivo || "antes"
+    });
+  }
+
+  // Cierra la sesión a una hora escrita a mano, deduciendo si terminó a su hora.
+  function cerrarConHora(ev, horaTexto, quien){
+    var f = horaDe(ev.end), i = horaDe(ev.start);
+    if(!i || !horaTexto) return;
+    var d = new Date(i.getTime());
+    var p = horaTexto.split(":");
+    d.setHours(parseInt(p[0],10) || 0, parseInt(p[1],10) || 0, 0, 0);
+    var motivo;
+    if(quien === "yo") motivo = "me-fui";
+    else motivo = (f && d.getTime() < f.getTime() - 5*60000) ? "antes" : "normal";
+    marcarConFin(ev, horaTexto, motivo);
+  }
+  function cerrarPresencia(ev, motivo){
+    var id = idEvento(ev);
+    var previo = asistencia[id] || {};
+    var i = horaDe(ev.start), f = horaDe(ev.end);
+    var entrada = previo.entrada;
+    if(!entrada){
+      // Marca sin hora de entrada: si la puso durante el evento, esa es la mejor
+      // aproximación; si no, se asume que entró a la hora programada.
+      var m0 = previo.marcado || 0;
+      entrada = (m0 && i && f && m0 >= i.getTime() && m0 <= f.getTime())
+        ? m0 : (i ? i.getTime() : Date.now());
+    }
+    var salida, fin;
+
+    if(motivo === "me-fui"){
+      // Nunca más tarde del fin previsto: si se marca días después, no cuenta de más.
+      salida = f ? Math.min(Date.now(), f.getTime()) : Date.now();
+      fin = "me-fui";
+    } else {
+      // "Terminó": nunca más tarde de la hora programada, y el propio
+      // reloj decide si terminó antes o a su hora.
+      salida = f ? Math.min(Date.now(), f.getTime()) : Date.now();
+      fin = (f && salida < f.getTime() - 5*60000) ? "antes" : "normal";
+    }
+    marcar(ev, "asisti", {entrada: entrada, salida: salida, motivoFin: fin});
+  }
+  // Un evento del calendario que en realidad era una tarea: pasa al tablero.
+  function convertirEnFicha(ev){
+    var i = horaDe(ev.start);
+    var t = {
+      id: nuevoId(), creado: Date.now(), orden: ordenSiguiente("pendiente"),
+      completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
+      tramoId: "", tramoInicio: 0, tramoUltimo: 0, avisado: 0,
+      titulo: ev.summary || "(sin título)",
+      proyecto: "", subproyecto: "",
+      fecha: fechaAgenda(), prioridad: "media", estado: "pendiente",
+      notas: "Estaba apuntada como evento del calendario" + (i ? " a las " + hhmm(i) : "") + ".",
+      eventoId: ev.id || "", eventoLink: ev.htmlLink || "",
+      eventoFecha: fechaAgenda(), meetUrl: ""
+    };
+    guardar(t);
+
+    var id = idEvento(ev);
+    var doc = {
+      eventoId: ev.id || "", titulo: ev.summary || "", fecha: fechaAgenda(),
+      inicio: (ev.start && ev.start.dateTime) || "", fin: (ev.end && ev.end.dateTime) || "",
+      estado: "tarea", tareaId: t.id, marcado: Date.now()
+    };
+    asistencia[id] = doc;
+    renderAgenda();
+    if(db) db.collection("asistencia").doc(id).set(doc).catch(function(){});
+    abrir(t.id);
+  }
+
+  function fichaDe(ev){
+    var id = ev.id;
+    if(!id) return null;
+    var hit = null;
+    lista().forEach(function(t){ if(t.eventoId === id) hit = t; });
+    return hit;
+  }
+
+  function desmarcar(ev){
+    var id = idEvento(ev);
+    delete asistencia[id];
+    renderAgenda();
+    if(db) db.collection("asistencia").doc(id).delete().catch(function(){});
+  }
+
+  // ---------- vistas de semana y mes ----------
+  function claseMarca(ev){
+    var m = asistencia[idEvento(ev)];
+    if(m && m.estado) return m.estado === "tarea" ? "" : m.estado;
+    var f = horaDe(ev.end);
+    return (f && f < new Date()) ? "pend" : "";   // ya pasó y sigue sin marcar
+  }
+  function eventosPorDia(){
+    var mapa = {};
+    (agenda.eventos || []).filter(seguido).forEach(function(e){
+      var f = fechaDeEvento(e);
+      if(!f) return;
+      (mapa[f] = mapa[f] || []).push(e);
+    });
+    return mapa;
+  }
+  function irAFecha(iso){
+    var hoy = new Date(hoyISO() + "T12:00:00");
+    var d = new Date(iso + "T12:00:00");
+    vistaAgenda = "dia";
+    Array.prototype.forEach.call(document.querySelectorAll(".vistas button"), function(b){
+      b.setAttribute("aria-pressed", String(b.dataset.vista === "dia"));
+    });
+    irADia(Math.round((d - hoy) / 86400000));
+  }
+
+  function renderRejilla(){
+    var cont = $("agenda-grid");
+    var porDia = eventosPorDia();
+    var cuerpo = $("hoy-cuerpo");
+    var total = 0;
+    Object.keys(porDia).forEach(function(k){ total += porDia[k].length; });
+
+    var res = document.createElement("div");
+    res.className = "hoy-linea";
+    res.style.fontSize = "13px";
+    var sinMarcar = 0;
+    Object.keys(porDia).forEach(function(k){
+      porDia[k].forEach(function(e){ if(claseMarca(e) === "pend") sinMarcar++; });
+    });
+    res.textContent = total
+      ? total + (total === 1 ? " sesión" : " sesiones") +
+        (sinMarcar ? " · " + sinMarcar + " sin marcar" : "") + "."
+      : "Sin sesiones que seguir en este periodo.";
+    cuerpo.appendChild(res);
+
+    if(vistaAgenda === "semana") renderSemana(cont, porDia);
+    else renderMes(cont, porDia);
+  }
+
+  function renderSemana(cont, porDia){
+    var r = rangoVista();
+    var grid = document.createElement("div");
+    grid.className = "sem";
+    for(var i = 0; i < 7; i++){
+      var iso = masDias(r.desde, i);
+      var d = new Date(iso + "T12:00:00");
+      var col = document.createElement("div");
+      col.className = "sem-col" + (iso === hoyISO() ? " hoy-col" : "");
+      col.tabIndex = 0;
+      col.setAttribute("role", "button");
+      col.title = "Abrir " + mayus(d.toLocaleDateString("es-PE", {weekday:"long", day:"numeric", month:"long"}));
+      col.addEventListener("click", (function(f){ return function(){ irAFecha(f); }; })(iso));
+      col.addEventListener("keydown", (function(f){ return function(ev){
+        if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); irAFecha(f); }
+      }; })(iso));
+
+      var cab = document.createElement("div");
+      cab.className = "sem-cab";
+      var nom = document.createElement("span");
+      nom.textContent = d.toLocaleDateString("es-PE", {weekday:"short"}).replace(".", "");
+      var num = document.createElement("b");
+      num.textContent = d.getDate();
+      cab.appendChild(nom); cab.appendChild(num);
+      col.appendChild(cab);
+
+      var evs = (porDia[iso] || []).sort(function(a,b){
+        return (horaDe(a.start) || 0) - (horaDe(b.start) || 0);
+      });
+      if(!evs.length){
+        var v = document.createElement("div");
+        v.className = "sem-vacio"; v.textContent = "—";
+        col.appendChild(v);
+      }
+      evs.forEach(function(e){
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "sem-ev " + claseMarca(e);
+        var h = document.createElement("em");
+        var ini = horaDe(e.start);
+        h.textContent = ini ? hhmm(ini) : "";
+        b.appendChild(h);
+        b.appendChild(document.createTextNode(e.summary || "(sin título)"));
+        b.title = (e.summary || "") + "\nClic para abrir ese día y marcarlo";
+        b.addEventListener("click", (function(f){ return function(ev2){
+          ev2.stopPropagation();   // la columna ya hace lo mismo
+          irAFecha(f);
+        }; })(iso));
+        col.appendChild(b);
+      });
+      grid.appendChild(col);
+    }
+    cont.appendChild(grid);
+  }
+
+  function renderMes(cont, porDia){
+    var r = rangoVista();
+    var grid = document.createElement("div");
+    grid.className = "mes";
+    ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].forEach(function(n){
+      var c = document.createElement("div");
+      c.className = "mes-nom"; c.textContent = n;
+      grid.appendChild(c);
+    });
+    var mesRef = fechaAgenda().slice(0,7);
+    for(var i = 0; i < 42; i++){
+      var iso = masDias(r.desde, i);
+      var d = new Date(iso + "T12:00:00");
+      var cel = document.createElement("button");
+      cel.type = "button";
+      cel.className = "mes-dia" +
+        (iso.slice(0,7) !== mesRef ? " fuera" : "") +
+        (iso === hoyISO() ? " hoy-col" : "");
+      cel.title = mayus(d.toLocaleDateString("es-PE", {weekday:"long", day:"numeric", month:"long"}));
+      cel.addEventListener("click", (function(f){ return function(){ irAFecha(f); }; })(iso));
+
+      var n = document.createElement("span");
+      n.className = "n"; n.textContent = d.getDate();
+      cel.appendChild(n);
+
+      var evs = porDia[iso] || [];
+      if(evs.length){
+        var pts = document.createElement("span");
+        pts.className = "mes-pts";
+        evs.slice(0, 8).forEach(function(e){
+          var p = document.createElement("i");
+          p.className = "mes-pt " + claseMarca(e);
+          pts.appendChild(p);
+        });
+        cel.appendChild(pts);
+        var horas = 0;
+        evs.forEach(function(e){
+          var a = horaDe(e.start), b = horaDe(e.end);
+          if(a && b) horas += b - a;
+        });
+        if(horas){
+          var hh = document.createElement("span");
+          hh.className = "h"; hh.textContent = duracion(horas);
+          cel.appendChild(hh);
+        }
+      }
+      grid.appendChild(cel);
+    }
+    cont.appendChild(grid);
+  }
+
+  function renderAgenda(){
+    var caja = $("hoy"), cuerpo = $("hoy-cuerpo"), est = $("hoy-est");
+    if(!mcp){ caja.hidden = true; return; }
+    caja.hidden = false;
+    cuerpo.innerHTML = "";
+    $("agenda-lista").innerHTML = "";
+    $("agenda-grid").innerHTML = "";
+    $("hoy-etq").textContent = etiquetaDia();
+    $("dia-hoy").hidden = (diaAgenda === 0 && vistaAgenda === "dia");
+
+    if(!agenda.eventos){
+      est.textContent = "";
+      var l0 = document.createElement("div");
+      l0.className = "hoy-linea";
+      l0.style.color = "var(--muted)";
+      l0.textContent = agenda.error ? msgErrorCal(agenda.error) : "Leyendo tu calendario…";
+      cuerpo.appendChild(l0);
+      return;
+    }
+
+    est.textContent = "actualizado " + hhmm(new Date(agenda.sello || Date.now()));
+
+    if(vistaAgenda !== "dia"){ renderRejilla(); return; }
+
+    var ahora = new Date();
+    var conHora = agenda.eventos.filter(function(e){ return e.start && e.start.dateTime; });
+    var ocupados = conHora.filter(ocupa);
+
+    var actual = null, proximo = null;
+    ocupados.forEach(function(e){
+      var i = horaDe(e.start), f = horaDe(e.end);
+      if(!i || !f) return;
+      if(i <= ahora && ahora < f && !actual) actual = {ev:e, ini:i, fin:f};
+      if(i > ahora && !proximo) proximo = {ev:e, ini:i, fin:f};
+    });
+
+    var restante = 0;
+    ocupados.forEach(function(e){
+      var i = horaDe(e.start), f = horaDe(e.end);
+      if(!i || !f || f <= ahora) return;
+      restante += f - Math.max(i.getTime(), ahora.getTime());
+    });
+
+    var l1 = document.createElement("div");
+    l1.className = "hoy-linea";
+    if(diaAgenda !== 0){
+      // Otro día: no hay "ahora", solo el plan de esa jornada.
+      var totalDia = 0;
+      ocupados.forEach(function(e){
+        var i2 = horaDe(e.start), f2 = horaDe(e.end);
+        if(i2 && f2) totalDia += f2 - i2;
+      });
+      l1.textContent = ocupados.length
+        ? ocupados.length + (ocupados.length === 1 ? " compromiso" : " compromisos") +
+          (totalDia ? ", " + duracion(totalDia) + " en total." : ".")
+        : "Sin compromisos en la agenda de ese día.";
+      cuerpo.appendChild(l1);
+    } else if(actual){
+      l1.innerHTML = "Ahora: <strong>" + escapar(actual.ev.summary || "(sin título)") +
+                     "</strong>, hasta las " + hhmm(actual.fin) + ".";
+    } else if(proximo){
+      var faltan = Math.round((proximo.ini - ahora) / 60000);
+      l1.innerHTML = "Libre hasta las <strong>" + hhmm(proximo.ini) + "</strong> — " +
+                     escapar(proximo.ev.summary || "(sin título)") +
+                     " (en " + (faltan >= 60 ? duracion(faltan*60000) : faltan + " min") + ").";
+    } else {
+      l1.textContent = "Sin más compromisos en la agenda de hoy.";
+    }
+    if(diaAgenda === 0) cuerpo.appendChild(l1);
+
+    var vencenHoy = lista().filter(function(t){
+      return t.estado !== "hecho" && t.fecha === hoyISO();
+    }).length;
+    var atrasadas = lista().filter(function(t){
+      var n = diasHasta(t.fecha);
+      return t.estado !== "hecho" && n !== null && n < 0;
+    }).length;
+
+    var pendientes = conHora.filter(function(e){
+      var f = horaDe(e.end);
+      return seguido(e) && (diaAgenda < 0 || (f && f <= ahora)) && !asistencia[idEvento(e)];
+    }).length;
+
+    var partes = [];
+    if(diaAgenda === 0){
+      if(restante > 0) partes.push(duracion(restante) + " ya comprometidas de aquí al final del día");
+      if(vencenHoy) partes.push(vencenHoy + (vencenHoy === 1 ? " ficha vence hoy" : " fichas vencen hoy"));
+      if(atrasadas) partes.push(atrasadas + (atrasadas === 1 ? " viene atrasada" : " vienen atrasadas"));
+    }
+    if(pendientes && diaAgenda <= 0)
+      partes.push(pendientes + (pendientes === 1 ? " evento sin marcar" : " eventos sin marcar"));
+    if(partes.length){
+      var l2 = document.createElement("div");
+      l2.className = "hoy-linea" + ((vencenHoy || atrasadas) && restante > 4*3600000 ? " alerta" : "");
+      l2.style.fontSize = "13px";
+      l2.textContent = partes.join(" · ") + ".";
+      cuerpo.appendChild(l2);
+    }
+
+    var seguidos = conHora.filter(seguido);
+    var cont = $("agenda-lista");
+
+    seguidos.forEach(function(e){
+      var i = horaDe(e.start), f = horaDe(e.end);
+      if(!i) return;
+      var enCurso = f && i <= ahora && ahora < f;
+      var terminado = f && f <= ahora;
+      var id = idEvento(e);
+      var marca = asistencia[id];
+
+      var fila = document.createElement("div");
+      fila.className = "ev" + (enCurso ? " ahora" : (terminado && !marca ? " pasado" : ""));
+
+      var h = document.createElement("span");
+      h.className = "h";
+      h.textContent = hhmm(i) + (f ? "–" + hhmm(f) : "");
+      fila.appendChild(h);
+
+      var t = document.createElement("span");
+      t.className = "t";
+      t.textContent = e.summary || "(sin título)";
+      t.title = t.textContent;
+      fila.appendChild(t);
+
+      var cur = cursoDe(e);
+      if(cur && rotuloCurso(cur)){
+        var ct = document.createElement("span");
+        ct.className = "curso-tag";
+        ct.textContent = rotuloCurso(cur);
+        ct.title = "Este curso cuenta como " + rotuloCurso(cur);
+        ct.style.color = colorProyecto(cur.proyecto);
+        fila.appendChild(ct);
+      }
+
+      var eng = document.createElement("button");
+      eng.type = "button"; eng.className = "eng"; eng.textContent = "⚙";
+      eng.title = "Proyecto y carpeta de notas de este curso";
+      eng.addEventListener("click", function(){ abrirCurso(e); });
+      fila.appendChild(eng);
+
+      var ficha = fichaDe(e);
+      if(ficha){
+        var vf = document.createElement("span");
+        vf.className = "acc";
+        var bf = document.createElement("button");
+        bf.type = "button";
+        bf.textContent = ficha.estado === "hecho" ? "Ficha hecha" : "Ver ficha";
+        bf.title = "Esta cita tiene una ficha en el tablero";
+        bf.addEventListener("click", function(){ abrir(ficha.id); });
+        vf.appendChild(bf);
+        fila.appendChild(vf);
+      }
+
+      // Notas de la sesión en un documento de Drive
+      var nt = document.createElement("span");
+      nt.className = "acc";
+      if(marca && marca.notasUrl){
+        // Un enlace de verdad: el visor bloquea las ventanas abiertas por código.
+        var an = document.createElement("a");
+        an.className = "btn-nota";
+        an.href = marca.notasUrl;
+        an.target = "_blank"; an.rel = "noopener";
+        an.textContent = "📝 Notas";
+        an.title = "Abrir el documento de notas de esta sesión";
+        an.addEventListener("click", function(ev2){ ev2.stopPropagation(); });
+        nt.appendChild(an);
+      } else {
+        var bn = document.createElement("button");
+        bn.type = "button";
+        bn.textContent = "Notas";
+        bn.title = "Crear un documento de notas en Drive para esta sesión";
+        bn.addEventListener("click", function(){ crearNota(e, bn); });
+        nt.appendChild(bn);
+      }
+      fila.appendChild(nt);
+
+      if(marca && marca.estado === "asisti" && !marca.salida){
+        // Asistió pero aún no consta la hora de salida: siempre se puede cerrar.
+        var aq = document.createElement("span");
+        aq.className = "marca asisti";
+        aq.textContent = marca.entrada
+          ? "Aquí desde " + hhmm(new Date(marca.entrada))
+          : "Asistí · falta la salida";
+        fila.appendChild(aq);
+
+        var cerrarAcc = document.createElement("span");
+        cerrarAcc.className = "acc";
+        [["normal","Terminó"],["me-fui","Me fui antes"]].forEach(function(par){
+          var b = document.createElement("button");
+          b.type = "button"; b.textContent = par[1];
+          b.title = (par[0] === "normal" ? "La clase terminó" : "Me retiré antes de que terminara") +
+                    " — se registra con la hora de ahora";
+          b.addEventListener("click", function(){ cerrarPresencia(e, par[0]); });
+          cerrarAcc.appendChild(b);
+        });
+
+        // Para cuando se te pasó marcarlo en el momento.
+        var bOtra = document.createElement("button");
+        bOtra.type = "button"; bOtra.textContent = "Fue a otra hora";
+        bOtra.title = "Escribir a qué hora acabaste de verdad";
+        bOtra.addEventListener("click", function(){
+          if(fila.querySelector(".fin-manual")) return;
+          var box = document.createElement("span");
+          box.className = "acc fin-antes fin-manual";
+          var inp = document.createElement("input");
+          inp.type = "time"; inp.step = 300;
+          var fEv = horaDe(e.end);
+          inp.value = fEv ? hhmm(fEv) : hhmm(new Date());
+          inp.title = "¿A qué hora saliste?";
+          var okClase = document.createElement("button");
+          okClase.type = "button"; okClase.textContent = "Terminó";
+          okClase.title = "A esa hora terminó la clase";
+          okClase.addEventListener("click", function(){
+            if(inp.value) cerrarConHora(e, inp.value, "clase");
+          });
+          var okYo = document.createElement("button");
+          okYo.type = "button"; okYo.textContent = "Me fui";
+          okYo.title = "A esa hora me retiré yo";
+          okYo.addEventListener("click", function(){
+            if(inp.value) cerrarConHora(e, inp.value, "yo");
+          });
+          box.appendChild(inp); box.appendChild(okClase); box.appendChild(okYo);
+          fila.appendChild(box);
+          inp.focus();
+        });
+        cerrarAcc.appendChild(bOtra);
+        fila.appendChild(cerrarAcc);
+
+        var x0 = document.createElement("button");
+        x0.type = "button"; x0.className = "quitar"; x0.textContent = "×";
+        x0.title = "Quitar la marca";
+        x0.addEventListener("click", function(){ desmarcar(e); });
+        fila.appendChild(x0);
+
+      } else if(marca){
+        var m = document.createElement("span");
+        m.className = "marca " + marca.estado;
+        var txt = ESTADOS[marca.estado] || marca.estado;
+        if(marca.estado === "asisti" && marca.realMin){
+          txt = duracion(marca.realMin*60000) +
+                (marca.programadoMin ? " de " + duracion(marca.programadoMin*60000) : "");
+          if(marca.motivoFin === "antes") txt += " · terminó antes";
+          else if(marca.motivoFin === "me-fui") txt += " · salí antes";
+        }
+        m.textContent = txt;
+        if(marca.estado === "asisti" && marca.entrada)
+          m.title = "De " + hhmm(new Date(marca.entrada)) +
+                    (marca.salida ? " a " + hhmm(new Date(marca.salida)) : "") +
+                    "\nClic para corregir la hora de salida";
+        if(marca.estado === "asisti" && marca.salida){
+          m.style.cursor = "pointer";
+          m.addEventListener("click", function(){
+            if(fila.querySelector(".fin-manual")) return;
+            var box = document.createElement("span");
+            box.className = "acc fin-antes fin-manual";
+            var inp = document.createElement("input");
+            inp.type = "time"; inp.step = 300;
+            inp.value = hhmm(new Date(marca.salida));
+            var okC = document.createElement("button");
+            okC.type = "button"; okC.textContent = "Terminó";
+            okC.addEventListener("click", function(){
+              if(inp.value) cerrarConHora(e, inp.value, "clase");
+            });
+            var okY = document.createElement("button");
+            okY.type = "button"; okY.textContent = "Me fui";
+            okY.addEventListener("click", function(){
+              if(inp.value) cerrarConHora(e, inp.value, "yo");
+            });
+            box.appendChild(inp); box.appendChild(okC); box.appendChild(okY);
+            fila.appendChild(box);
+            inp.focus();
+          });
+        }
+        fila.appendChild(m);
+
+        var x = document.createElement("button");
+        x.type = "button"; x.className = "quitar"; x.textContent = "×";
+        x.title = "Quitar la marca";
+        x.addEventListener("click", function(){ desmarcar(e); });
+        fila.appendChild(x);
+
+      } else if(enCurso || terminado){
+        if(enCurso){
+          var q = document.createElement("span");
+          q.className = "marca pregunta";
+          q.textContent = "¿Estás aquí?";
+          fila.appendChild(q);
+        }
+        var acc = document.createElement("span");
+        acc.className = "acc";
+        if(enCurso){
+          var bAqui = document.createElement("button");
+          bAqui.type = "button"; bAqui.textContent = "Sí, estoy";
+          bAqui.title = "Registra tu hora de entrada real";
+          bAqui.addEventListener("click", function(){
+            marcar(e, "asisti", {entrada: Date.now(), salida: 0, motivoFin: ""});
+          });
+          acc.appendChild(bAqui);
+        } else {
+          var bComp = document.createElement("button");
+          bComp.type = "button"; bComp.textContent = "Asistí completa";
+          bComp.addEventListener("click", function(){ marcarCompleta(e); });
+          acc.appendChild(bComp);
+
+          var bAntes = document.createElement("button");
+          bAntes.type = "button"; bAntes.textContent = "Terminó antes";
+          bAntes.addEventListener("click", function(){
+            if(fila.querySelector(".fin-antes")) return;
+            var box = document.createElement("span");
+            box.className = "acc fin-antes";
+            var inp = document.createElement("input");
+            inp.type = "time"; inp.step = 300;
+            var f0 = horaDe(e.end);
+            inp.value = f0 ? hhmm(new Date(f0.getTime() - 30*60000)) : "";
+            inp.title = "¿A qué hora terminó de verdad?";
+            var ok = document.createElement("button");
+            ok.type = "button"; ok.textContent = "Guardar";
+            ok.addEventListener("click", function(){
+              if(inp.value) marcarConFin(e, inp.value, "antes");
+            });
+            box.appendChild(inp); box.appendChild(ok);
+            fila.appendChild(box);
+            inp.focus();
+          });
+          acc.appendChild(bAntes);
+        }
+
+        [["falte", "No fui"], ["cancelado", "Se canceló"]].forEach(function(par){
+          var b = document.createElement("button");
+          b.type = "button";
+          b.textContent = par[1];
+          b.addEventListener("click", function(){ marcar(e, par[0]); });
+          acc.appendChild(b);
+        });
+        if(!ficha){
+          var bt = document.createElement("button");
+          bt.type = "button";
+          bt.textContent = "Es una tarea";
+          bt.title = "Esto no es una cita: pásalo al tablero como ficha";
+          bt.addEventListener("click", function(){ convertirEnFicha(e); });
+          acc.appendChild(bt);
+        }
+        fila.appendChild(acc);
+      } else if(!ficha){
+        // Todavía no empieza: solo se ofrece sacarla del seguimiento de citas.
+        var acc2 = document.createElement("span");
+        acc2.className = "acc";
+        var bt2 = document.createElement("button");
+        bt2.type = "button";
+        bt2.textContent = "Es una tarea";
+        bt2.title = "Esto no es una cita: pásalo al tablero como ficha";
+        bt2.addEventListener("click", function(){ convertirEnFicha(e); });
+        acc2.appendChild(bt2);
+        fila.appendChild(acc2);
+      }
+
+      cont.appendChild(fila);
+    });
+
+    if(!seguidos.length){
+      var vacio = document.createElement("div");
+      vacio.className = "ev";
+      vacio.innerHTML = '<span class="t" style="color:var(--faint)">Nada que seguir ' +
+        (diaAgenda === 0 ? "hoy" : "ese día") + ' en tu calendario.</span>';
+      cont.appendChild(vacio);
+    }
+  }
+
+  function escapar(s){
+    var d = document.createElement("span");
+    d.textContent = String(s == null ? "" : s);
+    return d.innerHTML;
+  }
+
+  // ---------- Google Drive ----------
+  var DRIVE = "Google Drive";
+  var carpetas = {};   // proyecto -> {url, nombre}
+
+  // Lo que llega del almacén viene congelado: hay que copiarlo antes de tocarlo.
+  function descongelar(o){
+    try { return JSON.parse(JSON.stringify(o || {})); }
+    catch(e){ return {}; }
+  }
+
+  function esCarpeta(f){ return (f.mimeType||"").indexOf("folder") !== -1; }
+  function idDeEnlace(url){
+    var m = String(url).match(/\/(?:folders|d)\/([A-Za-z0-9_-]{10,})/) ||
+            String(url).match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+    return m ? m[1] : "";
+  }
+  function driveDe(t){
+    if(t.driveUrl) return {url: t.driveUrl, nombre: t.driveNombre || "Drive", propio: true};
+    if(t.proyecto && carpetas[t.proyecto])
+      return {url: carpetas[t.proyecto].url, nombre: carpetas[t.proyecto].nombre, propio: false};
+    return null;
+  }
+
+  async function buscarEnDrive(texto){
+    var q = String(texto || "").trim();
+    if(!q) return [];
+    if(/^https?:\/\//i.test(q)){
+      var id = idDeEnlace(q);
+      if(!id) return [{title: "Enlace de Drive", viewUrl: q, mimeType: ""}];
+      var r = await mcp.callTool(DRIVE, "get_file_metadata", {fileId: id, excludeContentSnippets: true});
+      var f = r && r.payload;
+      return f && f.id ? [f] : [{title: "Enlace de Drive", viewUrl: q, mimeType: ""}];
+    }
+    var esc = q.replace(/\\/g, "").replace(/'/g, "\\'");
+    var res = await mcp.callTool(DRIVE, "search_files", {
+      query: "title contains '" + esc + "'",
+      pageSize: 8,
+      excludeContentSnippets: true
+    });
+    var p = res && res.payload;
+    var files = (p && p.files) || [];
+    // Las carpetas primero: casi siempre es lo que se quiere enlazar.
+    return files.sort(function(a,b){ return (esCarpeta(b)?1:0) - (esCarpeta(a)?1:0); });
+  }
+
+  // Pinta resultados de Drive en un contenedor y avisa cuál se eligió.
+  function pintarResultadosDrive(cont, texto, alElegir){
+    if(!texto || !texto.trim()) return;
+    cont.innerHTML = "";
+    var cargando = document.createElement("p");
+    cargando.className = "cal-nota";
+    cargando.textContent = "Buscando en tu Drive…";
+    cont.appendChild(cargando);
+    buscarEnDrive(texto).then(function(files){
+      cont.innerHTML = "";
+      if(!files.length){
+        var n = document.createElement("p");
+        n.className = "cal-nota";
+        n.textContent = "Nada con ese nombre. Prueba otra palabra o pega el enlace de la carpeta.";
+        cont.appendChild(n);
+        return;
+      }
+      files.forEach(function(f){
+        var b = document.createElement("button");
+        b.type = "button";
+        var ic = document.createElement("span");
+        ic.className = "ic"; ic.textContent = esCarpeta(f) ? "📁" : "📄";
+        var nm = document.createElement("span");
+        nm.className = "nm"; nm.textContent = f.title || "(sin nombre)";
+        var tp = document.createElement("span");
+        tp.className = "tp"; tp.textContent = esCarpeta(f) ? "carpeta" : "archivo";
+        b.appendChild(ic); b.appendChild(nm); b.appendChild(tp);
+        b.addEventListener("click", function(){ alElegir(f); });
+        cont.appendChild(b);
+      });
+    }).catch(function(e){
+      cont.innerHTML = "";
+      var n = document.createElement("p");
+      n.className = "cal-nota error";
+      n.textContent = msgErrorCal(e).replace("Google Calendar", "Google Drive");
+      cont.appendChild(n);
+    });
+  }
+
+  function guardarCarpetaProyecto(proy, url, nombre, id){
+    if(!proy) return;
+    var mapaC = descongelar(carpetas);
+    mapaC[proy] = {url: url, nombre: nombre, id: id || ""};
+    carpetas = mapaC;
+    if(db) db.doc("config/carpetas").set(carpetas).catch(function(){
+      toast("No pude guardar la carpeta del proyecto.");
+    });
+  }
+
+  function renderBloqueDrive(t){
+    var caja = $("f-drive");
+    if(!t || !mcp){ caja.hidden = true; return; }
+    caja.hidden = false;
+    $("f-drive-nota").hidden = true;
+    $("f-drive-res").innerHTML = "";
+    $("f-drive-busca").hidden = true;
+    $("f-drive-q").value = "";
+
+    var d = driveDe(t);
+    var est = $("f-drive-est"), ver = $("f-drive-ver"), quitar = $("f-drive-quitar");
+    var wrap = $("f-drive-proy-wrap");
+
+    if(d){
+      est.textContent = d.propio ? d.nombre : d.nombre + " (del proyecto)";
+      est.className = "cal-est ok";
+      ver.hidden = false; ver.href = d.url;
+      quitar.hidden = false;
+      quitar.textContent = d.propio ? "Quitar" : "Quitar la del proyecto";
+      $("f-drive-buscar").textContent = "Cambiar";
+    } else {
+      est.textContent = "Sin enlazar"; est.className = "cal-est";
+      ver.hidden = true; quitar.hidden = true;
+      $("f-drive-buscar").textContent = "Enlazar carpeta o archivo";
+    }
+
+    if(t.proyecto){
+      wrap.hidden = false;
+      $("f-drive-proy-txt").textContent = "Usar también para todo " + t.proyecto;
+      $("f-drive-proy").checked = false;
+    } else {
+      wrap.hidden = true;
+    }
+  }
+
+  function elegirDrive(f){
+    if(!editando) return;
+    var t = tareas[editando];
+    if(!t) return;
+    var copia = Object.assign({}, t);
+    copia.driveUrl = f.viewUrl || "";
+    copia.driveNombre = f.title || "Drive";
+    guardar(copia);
+    if($("f-drive-proy").checked && t.proyecto){
+      guardarCarpetaProyecto(t.proyecto, copia.driveUrl, copia.driveNombre, f.id || "");
+    }
+    renderBloqueDrive(copia);
+    toast("Enlazado a " + recortar(copia.driveNombre, 28));
+  }
+
+  // ---------- registro de tiempo ----------
+  function isoDe(d){
+    var f = d.toLocaleDateString("en-CA");
+    var h = pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+    return isoLocal(f, h);
+  }
+
+  // `desdeMs` permite anotar desde el inicio real, no desde el momento del clic.
+  async function abrirTramo(t, desdeMs){
+    if(!mcp || !registrarTiempo || t.tramoId) return;
+    // Cerrojo por ficha: sin esto, la transición y la conciliación pueden
+    // crear dos bloques para el mismo tramo.
+    if(cerrojoTramo[t.id]) return;
+    cerrojoTramo[t.id] = true;
+    try{
+      await crearBloqueTramo(t, desdeMs);
+    } finally {
+      delete cerrojoTramo[t.id];
+    }
+  }
+
+  var cerrojoTramo = {};
+
+  async function crearBloqueTramo(t, desdeMs){
+    var vivo = tareas[t.id] || t;
+    if(vivo.tramoId) return;   // otra llamada se adelantó
+    var ahora = new Date(desdeMs || Date.now());
+    var fin = new Date(Math.max(Date.now(), ahora.getTime()) + 15*60000);
+    var res = await mcp.callTool(CAL, "create_event", {
+      summary: "⏱ " + t.titulo + (rotulo(t) ? " · " + rotulo(t) : ""),
+      description: "Registro de trabajo anotado por tu Fichero de Tareas.",
+      startTime: isoDe(ahora),
+      endTime: isoDe(fin),
+      timeZone: TZ,
+      availability: "AVAILABILITY_FREE",
+      colorId: "8",
+      overrideReminders: []
+    });
+    var ev = res && res.payload;
+    if(!ev || !ev.id) return;
+    var copia = Object.assign({}, tareas[t.id] || t);
+    copia.tramoId = ev.id;
+    copia.tramoInicio = ahora.getTime();
+    guardar(copia);
+  }
+
+  // Si el registro está activo y algo lleva rato en curso sin bloque, se abre solo.
+  function conciliarTramos(){
+    if(!mcp || !registrarTiempo) return;
+    lista().forEach(function(t){
+      if(t.estado !== "curso" || t.tramoId || cerrojoTramo[t.id]) return;
+      abrirTramo(t, t.cursoDesde || Date.now())
+        .catch(function(e){ toast("No pude anotar “" + recortar(t.titulo,28) + "”. " + msgErrorCal(e)); });
+    });
+  }
+
+  // `finMs` cierra el bloque en un momento pasado (una ficha olvidada abierta).
+  async function cerrarTramo(t, finMs){
+    if(!mcp || !t.tramoId) return;
+    var id = t.tramoId;
+    var inicio = t.tramoInicio || Date.now();
+    var fin = finMs || Date.now();
+    var copia = Object.assign({}, tareas[t.id] || t);
+    copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0;
+    guardar(copia);
+    // Un tramo de menos de tres minutos fue un clic, no trabajo: no ensucia el calendario.
+    if(fin - inicio < 3*60000){
+      await mcp.callTool(CAL, "delete_event", {eventId:id, notificationLevel:"NONE"});
+      return;
+    }
+    await mcp.callTool(CAL, "update_event", {
+      eventId: id, endTime: isoDe(new Date(fin)), timeZone: TZ, notificationLevel: "NONE"
+    });
+  }
+
+  // Mientras la pestaña está a la vista, el bloque abierto crece con el reloj.
+  async function estirarTramos(){
+    if(!mcp || !registrarTiempo || document.hidden) return;
+    var abiertos = lista().filter(function(t){ return t.estado === "curso" && t.tramoId; });
+    for(var i = 0; i < abiertos.length; i++){
+      try{
+        await mcp.callTool(CAL, "update_event", {
+          eventId: abiertos[i].tramoId,
+          endTime: isoDe(new Date()),
+          timeZone: TZ,
+          notificationLevel: "NONE"
+        });
+        // Última hora en que constaba actividad real: sirve para recortar un olvido.
+        var copia = Object.assign({}, tareas[abiertos[i].id] || abiertos[i]);
+        copia.tramoUltimo = Date.now();
+        guardar(copia);
+      }catch(e){ /* se reintenta en el siguiente ciclo */ }
+    }
+  }
+  setInterval(estirarTramos, 600000);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden) estirarTramos();
+  });
+
+  // ---------- ¿terminaste ahora o antes? ----------
+  var pendienteCierre = null;
+  var MINIMO_PREGUNTA = 20*60000;   // por debajo de esto no vale la pena preguntar
+
+  function quizaPreguntarCierre(previa, anterior, nuevo){
+    if(anterior !== "curso" || nuevo === "curso") return;
+    if(!previa.cursoDesde) return;
+    var corrido = Date.now() - previa.cursoDesde;
+    if(corrido < MINIMO_PREGUNTA) return;
+    pendienteCierre = {
+      id: previa.id,
+      titulo: previa.titulo,
+      desde: previa.cursoDesde,
+      cerradoEn: Date.now(),
+      tramoId: previa.tramoId || "",
+      corrido: corrido
+    };
+    renderCierre();
+  }
+
+  function cerrarAviso(){
+    pendienteCierre = null;
+    renderCierre();
+  }
+
+  function renderCierre(){
+    var caja = $("cierre");
+    if(!pendienteCierre){ caja.hidden = true; caja.innerHTML = ""; return; }
+    var p = pendienteCierre;
+    caja.hidden = false;
+    caja.innerHTML = "";
+
+    var txt = document.createElement("div");
+    txt.className = "txt";
+    var b = document.createElement("b");
+    b.textContent = recortar(p.titulo, 40);
+    txt.appendChild(b);
+    txt.appendChild(document.createTextNode(" salió de En curso tras " + duracion(p.corrido) + "."));
+    var sub = document.createElement("span");
+    sub.textContent = "¿Hasta qué hora estuviste en esto?";
+    txt.appendChild(sub);
+    caja.appendChild(txt);
+
+    var ok = document.createElement("button");
+    ok.type = "button"; ok.className = "btn"; ok.textContent = "Hasta ahora";
+    ok.addEventListener("click", cerrarAviso);
+    caja.appendChild(ok);
+
+    var inp = document.createElement("input");
+    inp.type = "time"; inp.step = 300;
+    inp.value = pad2(new Date(p.cerradoEn).getHours()) + ":" + pad2(new Date(p.cerradoEn).getMinutes());
+    inp.title = "¿A qué hora dejaste de trabajar en esto?";
+    caja.appendChild(inp);
+
+    var guardar_ = document.createElement("button");
+    guardar_.type = "button"; guardar_.className = "btn-primary";
+    guardar_.style.fontSize = "12.5px"; guardar_.style.padding = "5px 11px";
+    guardar_.textContent = "Fue a esa hora";
+    guardar_.addEventListener("click", function(){
+      if(inp.value) aplicarCierre(inp.value);
+    });
+    caja.appendChild(guardar_);
+
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "x"; x.textContent = "×";
+    x.title = "Dejarlo como está";
+    x.addEventListener("click", cerrarAviso);
+    caja.appendChild(x);
+  }
+
+  function aplicarCierre(horaTexto){
+    var p = pendienteCierre;
+    if(!p) return;
+    var t = tareas[p.id];
+    if(!t){ cerrarAviso(); return; }
+
+    var d = new Date(p.cerradoEn);
+    var hp = horaTexto.split(":");
+    d.setHours(parseInt(hp[0],10) || 0, parseInt(hp[1],10) || 0, 0, 0);
+    var salida = d.getTime();
+    if(salida > p.cerradoEn) salida = p.cerradoEn;   // no puede ser en el futuro
+    if(salida < p.desde) salida = p.desde;           // ni antes de haber empezado
+
+    var exceso = p.cerradoEn - salida;
+    if(exceso > 0){
+      var copia = Object.assign({}, t);
+      copia.msEnCurso = Math.max(0, (copia.msEnCurso || 0) - exceso);
+      guardar(copia);
+    }
+    // El bloque del calendario se recorta a la misma hora.
+    if(p.tramoId && mcp){
+      mcp.callTool(CAL, "update_event", {
+        eventId: p.tramoId, endTime: isoDe(new Date(salida)), timeZone: TZ, notificationLevel: "NONE"
+      }).catch(function(){ toast("Ajusté la ficha, pero no el bloque del calendario."); });
+    }
+    toast("Registrado hasta las " + pad2(new Date(salida).getHours()) + ":" +
+          pad2(new Date(salida).getMinutes()) + " — " + duracion(salida - p.desde) + " en esta sesión");
+    cerrarAviso();
+  }
+
+  function trasTransicion(t, anterior, nuevo){
+    if(!mcp) return;
+    if(nuevo === "curso" && anterior !== "curso" && registrarTiempo){
+      abrirTramo(t).catch(function(e){
+        toast("No pude anotar el inicio en el calendario. " + msgErrorCal(e));
+      });
+    }
+    if(anterior === "curso" && nuevo !== "curso" && t.tramoId){
+      cerrarTramo(t).catch(function(){
+        toast("No pude cerrar el bloque en el calendario; revisa su hora de fin.");
+      });
+    }
+  }
+
+  async function crearReunion(){
+    if(!mcp) return;
+    var titulo = $("r-titulo").value.trim();
+    var fecha = $("r-fecha").value;
+    var hora = $("r-hora").value;
+    if(!titulo || !fecha || !hora) return;
+    var mins = parseInt($("r-dur").value, 10) || 60;
+    var inicio = new Date(fecha + "T" + hora + ":00");
+    var fin = new Date(inicio.getTime() + mins*60000);
+    var finFecha = fin.toLocaleDateString("en-CA");
+    var finHora = pad2(fin.getHours()) + ":" + pad2(fin.getMinutes()) + ":00";
+
+    var correos = $("r-invitados").value.split(/[,;\s]+/)
+      .map(function(s){ return s.trim(); })
+      .filter(function(s){ return s.indexOf("@") > 0; });
+
+    var proy = $("r-proy").value.trim();
+    var sub = $("r-sub").value.trim();
+    var partes = [];
+    if(proy) partes.push(proy + (sub ? " › " + sub : ""));
+    partes.push("Agendada desde tu Fichero de Tareas.");
+
+    var input = {
+      summary: proy ? titulo + " · " + proy : titulo,
+      description: partes.join("\n\n"),
+      startTime: isoLocal(fecha, hora + ":00"),
+      endTime: isoLocal(finFecha, finHora),
+      timeZone: TZ,
+      overrideReminders: [{method:"popup", minutes:10}, {method:"popup", minutes:60}]
+    };
+    if($("r-meet").checked) input.addGoogleMeetUrl = true;
+    if(correos.length) input.attendees = correos.map(function(c){
+      return {email:c, responseStatus:"needsAction"};
+    });
+
+    var res = await mcp.callTool(CAL, "create_event", input);
+    var ev = res && res.payload;
+    if(!ev || !ev.id) throw {code:"upstream_error", message:"El calendario no devolvió la reunión."};
+
+    if($("r-ficha").checked){
+      var t = {
+        id: nuevoId(), creado: Date.now(), orden: ordenSiguiente("pendiente"),
+        completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
+        tramoId: "", tramoInicio: 0,
+        titulo: titulo, proyecto: proy, subproyecto: sub,
+        fecha: fecha, prioridad: "media", estado: "pendiente",
+        notas: (ev.conferenceUrl ? "Meet: " + ev.conferenceUrl + "\n" : "") +
+               (correos.length ? "Invitados: " + correos.join(", ") : ""),
+        eventoId: ev.id, eventoLink: ev.htmlLink || "",
+        eventoFecha: fecha, meetUrl: ev.conferenceUrl || ""
+      };
+      guardar(t);
+    }
+    cerrarReunion();
+    var cuando = new Date(inicio).toLocaleString("es-PE", {
+      weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"
+    });
+    aviso("Reunión creada: " + titulo + " — " + cuando +
+          (correos.length ? ", con " + correos.length + " invitado(s)." : ".") +
+          (ev.conferenceUrl ? " Meet: " + ev.conferenceUrl : ""),
+          ev.htmlLink, "Verla en el calendario");
+    toast(ev.conferenceUrl ? "Reunión creada con enlace de Meet" : "Reunión creada");
+  }
+
+  // ---------- exportar ----------
+  function filas(){
+    var orden = {pendiente:0, curso:1, hecho:2};
+    return lista().sort(function(a,b){
+      if(orden[a.estado] !== orden[b.estado]) return orden[a.estado] - orden[b.estado];
+      if((a.fecha||"9999") !== (b.fecha||"9999")) return (a.fecha||"9999") < (b.fecha||"9999") ? -1 : 1;
+      return PESO_PRIO[a.prioridad||"media"] - PESO_PRIO[b.prioridad||"media"];
+    }).map(function(t){
+      var ms = msEnCurso(t);
+      var lead = t.completado && t.creado ? (t.completado - t.creado) : 0;
+      return {
+        Tarea: t.titulo,
+        "Parte de": (t.padre && tareas[t.padre]) ? tareas[t.padre].titulo : "",
+        Proyecto: t.proyecto || "",
+        Subproyecto: t.subproyecto || "",
+        "Fecha límite": t.fecha || "",
+        Prioridad: NOMBRE_PRIO[t.prioridad||"media"],
+        Estado: NOMBRE_COL[t.estado],
+        Creada: fechaHora(t.creado),
+        "Pasó a En curso": fechaHora(t.iniciado),
+        Terminada: fechaHora(t.completado),
+        "Horas en curso": ms > 0 ? Math.round(ms/36000)/100 : "",
+        "Días creada→hecha": lead > 0 ? Math.round(lead/864000)/100 : "",
+        "En calendario": t.eventoId ? (t.meetUrl ? "Reunión con Meet" : "Sí") : "",
+        Notas: t.notas || ""
+      };
+    });
+  }
+  function nombreArchivo(ext){
+    return "fichero-tareas-" + hoyISO() + "." + ext;
+  }
+  async function descargar(filename, data){
+    var dl = await claude.use("downloads");
+    if(!dl){ toast("La descarga no está disponible en esta vista."); return; }
+    try{
+      await dl.save({filename:filename, data:data});
+      toast("Archivo guardado");
+    }catch(e){
+      if(e && e.code === "declined") return;
+      toast("No se pudo guardar el archivo.");
+    }
+  }
+  function exportarCSV(){
+    var rows = filas();
+    if(!rows.length){ toast("No hay tareas que exportar todavía."); return; }
+    var cols = Object.keys(rows[0]);
+    var esc = function(v){ v = String(v==null?"":v); return /[",\n;]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+    var csv = "﻿" + cols.join(";") + "\n" +
+      rows.map(function(r){ return cols.map(function(c){ return esc(r[c]); }).join(";"); }).join("\n");
+    descargar(nombreArchivo("csv"), csv);
+  }
+
+  function exportarXLSX(){
+    var rows = filas();
+    if(!rows.length){ toast("No hay tareas que exportar todavía."); return; }
+    var ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{wch:52},{wch:30},{wch:18},{wch:18},{wch:13},{wch:11},{wch:12},
+                   {wch:17},{wch:17},{wch:17},{wch:14},{wch:17},{wch:15},{wch:44}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tareas");
+    var buf = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+    descargar(nombreArchivo("xlsx"), buf);
+  }
+
+  // El PDF se maqueta a mano: una hoja para leer o imprimir, no un volcado de la tabla.
+  function exportarPDF(){
+    var Ctor = window.jspdf && window.jspdf.jsPDF;
+    if(!Ctor){ toast("El generador de PDF no cargó. Usa Excel o CSV."); return; }
+    var items = lista();
+    if(!items.length){ toast("No hay tareas que exportar todavía."); return; }
+
+    var doc = new Ctor({unit:"pt", format:"a4"});
+    var M = 48, ancho = 595.28, util = ancho - M*2;
+    var y = M;
+    var pagina = 1;
+
+    // jsPDF estándar no lleva los signos › ✓ ⏱, así que el PDF usa solo latinos.
+    var limpio = function(s){ return String(s||"").replace(/[^\x20-\xFF]/g, ""); };
+
+    function pie(){
+      doc.setFont("helvetica","normal").setFontSize(8).setTextColor(150);
+      doc.text("Fichero de Tareas", M, 812);
+      doc.text("Pagina " + pagina, ancho - M, 812, {align:"right"});
+    }
+    function salto(alto){
+      if(y + alto < 790) return;
+      pie(); doc.addPage(); pagina++; y = M;
+    }
+
+    var hoy = new Date();
+    doc.setFont("helvetica","bold").setFontSize(18).setTextColor(24,32,43);
+    doc.text("Fichero de Tareas", M, y); y += 20;
+    doc.setFont("helvetica","normal").setFontSize(9.5).setTextColor(97,108,124);
+    var cab = "Exportado el " + hoy.toLocaleDateString("es-PE",{day:"numeric",month:"long",year:"numeric"}) +
+              " a las " + pad2(hoy.getHours()) + ":" + pad2(hoy.getMinutes());
+    if(filtroProyecto) cab += "  |  Proyecto: " + limpio(filtroProyecto) + (filtroSub ? " > " + limpio(filtroSub) : "");
+    doc.text(cab, M, y); y += 12;
+
+    var abiertas = items.filter(function(t){ return t.estado !== "hecho"; }).length;
+    var vencidas = items.filter(function(t){
+      var n = diasHasta(t.fecha);
+      return t.estado !== "hecho" && n !== null && n < 0;
+    }).length;
+    doc.text(abiertas + " abiertas  |  " + vencidas + " vencidas  |  " + items.length + " en total", M, y);
+    y += 10;
+    doc.setDrawColor(195,203,214).setLineWidth(1).line(M, y, ancho - M, y);
+    y += 22;
+
+    COLS.forEach(function(col){
+      var enCol = items.filter(function(t){ return t.estado === col && pasaFiltro(t); }).sort(ordenar);
+      if(!enCol.length) return;
+      salto(60);
+      doc.setFont("helvetica","bold").setFontSize(10).setTextColor(40,73,124);
+      doc.text(limpio(NOMBRE_COL[col]).toUpperCase() + "  (" + enCol.length + ")", M, y);
+      y += 6;
+      doc.setDrawColor(220,225,232).setLineWidth(0.8).line(M, y, ancho - M, y);
+      y += 16;
+
+      enCol.forEach(function(t){
+        var titulo = doc.setFont("helvetica","normal").setFontSize(11)
+                        .splitTextToSize(limpio(t.titulo), util - 14);
+        salto(titulo.length * 14 + 26);
+
+        doc.setFillColor(40,73,124);
+        doc.circle(M + 3, y - 3.5, 1.8, "F");
+        doc.setFont("helvetica","normal").setFontSize(11).setTextColor(24,32,43);
+        doc.text(titulo, M + 14, y);
+        y += titulo.length * 14;
+
+        var det = [];
+        if(t.proyecto) det.push(limpio(t.proyecto) + (t.subproyecto ? " > " + limpio(t.subproyecto) : ""));
+        if(t.fecha){
+          var n = diasHasta(t.fecha);
+          det.push("Vence " + t.fecha + (n !== null && n < 0 && t.estado !== "hecho" ? " (" + Math.abs(n) + " d tarde)" : ""));
+        }
+        det.push("Prioridad " + NOMBRE_PRIO[t.prioridad||"media"].toLowerCase());
+        var ms = msEnCurso(t);
+        if(ms > 0) det.push(duracion(ms) + " en curso");
+        if(t.eventoId) det.push(t.meetUrl ? "Reunion con Meet" : "En el calendario");
+
+        doc.setFontSize(8.5).setTextColor(97,108,124);
+        doc.text(limpio(det.join("   ·   ")), M + 14, y + 1);
+        y += 20;
+      });
+      y += 10;
+    });
+
+    pie();
+    descargar(nombreArchivo("pdf"), doc.output("arraybuffer"));
+  }
+
+  // ---------- menú de exportación ----------
+  var menuExp = $("menu-exp"), btnExp = $("exportar");
+  function abrirMenu(abierto){
+    menuExp.hidden = !abierto;
+    btnExp.setAttribute("aria-expanded", String(abierto));
+  }
+  btnExp.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    abrirMenu(menuExp.hidden);
+  });
+  document.addEventListener("click", function(ev){
+    if(!menuExp.hidden && !menuExp.contains(ev.target)) abrirMenu(false);
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key === "Escape" && !menuExp.hidden) abrirMenu(false);
+  });
+  Array.prototype.forEach.call(menuExp.querySelectorAll("[data-exp]"), function(b){
+    b.addEventListener("click", function(){
+      abrirMenu(false);
+      var tipo = b.dataset.exp;
+      if(tipo === "pdf") exportarPDF();
+      else if(tipo === "xlsx") exportarXLSX();
+      else exportarCSV();
+    });
+  });
+  if(!window.XLSX) $("exp-xlsx").hidden = true;
+  if(!(window.jspdf && window.jspdf.jsPDF)) $("exp-pdf").hidden = true;
+
+  // ---------- arranque ----------
+  render();
+  $("estado-db").textContent = "Conectando con el almacén…";
+
+  claude.use("mcp").then(function(m){
+    mcp = m || null;
+    $("reunion").hidden = !mcp;
+    renderRegistro();
+    renderAgenda();
+    if(dlg.open && editando) renderBloqueCal(tareas[editando]);
+    if(mcp){ iniciarAgenda(); conciliarTramos(); setTimeout(estirarTramos, 6000); }
+  });
+
+  claude.use("db").then(function(store){
+    if(!store){
+      soloLocal = true;
+      $("estado-db").textContent = "Sin almacén — modo local";
+      aviso("No hay almacén disponible, así que las tareas viven solo en esta pestaña.");
+      return;
+    }
+    db = store;
+
+    db.doc("config/cursos").onSnapshot(function(snap){
+      cursos = snap.exists ? descongelar(snap.data()) : {};
+      renderAgenda();
+    }, function(){ /* sin cursos configurados */ });
+
+    db.doc("config/carpetas").onSnapshot(function(snap){
+      carpetas = snap.exists ? descongelar(snap.data()) : {};
+      render();
+    }, function(){ /* sin carpetas guardadas */ });
+
+    db.doc("config/preferencias").onSnapshot(function(snap){
+      var v = snap.exists ? (snap.data() || {}) : {};
+      registrarTiempo = !!v.registrarTiempo;
+      if(Array.isArray(v.excluir)) excluir = v.excluir.map(String);
+      raizCursos = (v.raizCursos && v.raizCursos.url) ? descongelar(v.raizCursos) : null;
+      $("chk-registro").checked = registrarTiempo;
+      renderRegistro();
+      renderAgenda();
+      conciliarTramos();
+    }, function(){ /* sin preferencias guardadas, queda apagado */ });
+
+    suscribirAsistencia();
+
+    db.collection("tareas").onSnapshot(function(snap){
+      var vivos = {};
+      snap.docs.forEach(function(d){
+        var v = d.data() || {};
+        vivos[d.id] = {
+          id: d.id,
+          titulo: String(v.titulo || "(sin título)"),
+          proyecto: String(v.proyecto || ""),
+          subproyecto: String(v.subproyecto || ""),
+          padre: String(v.padre || ""),
+          horaLimite: String(v.horaLimite || ""),
+          estimadoMin: Number(v.estimadoMin) || 0,
+          avisoId: String(v.avisoId || ""),
+          avisoLink: String(v.avisoLink || ""),
+          avisoHora: String(v.avisoHora || ""),
+          driveUrl: String(v.driveUrl || ""),
+          driveNombre: String(v.driveNombre || ""),
+          fecha: String(v.fecha || ""),
+          eventoId: String(v.eventoId || ""),
+          eventoLink: String(v.eventoLink || ""),
+          eventoFecha: String(v.eventoFecha || ""),
+          meetUrl: String(v.meetUrl || ""),
+          tramoId: String(v.tramoId || ""),
+          tramoInicio: Number(v.tramoInicio) || 0,
+          tramoUltimo: Number(v.tramoUltimo) || 0,
+          avisado: Number(v.avisado) || 0,
+          prioridad: (["alta","media","baja"].indexOf(v.prioridad) >= 0 ? v.prioridad : "media"),
+          estado: (COLS.indexOf(v.estado) >= 0 ? v.estado : "pendiente"),
+          notas: String(v.notas || ""),
+          orden: Number(v.orden) || 0,
+          creado: Number(v.creado) || 0,
+          iniciado: Number(v.iniciado) || 0,
+          cursoDesde: Number(v.cursoDesde) || 0,
+          msEnCurso: Number(v.msEnCurso) || 0,
+          completado: Number(v.completado) || 0
+        };
+      });
+      tareas = vivos;
+      $("estado-db").textContent = snap.metadata && snap.metadata.fromCache
+        ? "Sincronizando…" : "Guardado automáticamente";
+      render();
+      renderAgenda();
+      conciliarTramos();
+    }, function(e){
+      $("estado-db").textContent = "Almacén no disponible";
+      manejarError(e, "Se perdió la conexión con el almacén.");
+    });
+  });
+})();
+</script>
+</body>
+</html>
