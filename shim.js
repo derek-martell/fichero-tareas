@@ -126,6 +126,50 @@
     var fs = firebase.firestore();
     try{ fs.enablePersistence({synchronizeTabs:true}).catch(function(){}); }catch(e){}
 
+    // Cada persona guarda todo bajo usuarios/{uid}/…; las reglas solo le dejan ver esa rama.
+    function porUsuario(uid){
+      var base = "usuarios/" + uid + "/";
+      return {
+        doc: function(ruta){ return fs.doc(base + ruta); },
+        collection: function(nombre){ return fs.collection(base + nombre); }
+      };
+    }
+
+    // Copia (sin borrar) los datos de la estructura antigua, una sola vez por cuenta.
+    // Si la cuenta no tiene permiso sobre esas rutas, no hay nada que migrar.
+    function migrar(uid){
+      var base = "usuarios/" + uid + "/";
+      var marca = fs.doc(base + "config/migracion");
+      return marca.get().then(function(m){
+        if(m.exists) return;
+        var pares = [];
+        var lecturas = ["tareas", "asistencia"].map(function(c){
+          return fs.collection(c).get().then(function(s){
+            s.docs.forEach(function(d){ pares.push([base + c + "/" + d.id, d.data()]); });
+          });
+        }).concat(["cursos", "carpetas", "preferencias"].map(function(n){
+          return fs.doc("config/" + n).get().then(function(d){
+            if(d.exists) pares.push([base + "config/" + n, d.data()]);
+          });
+        }));
+        return Promise.all(lecturas).then(function(){
+          var lotes = [];
+          for(var i = 0; i < pares.length; i += 400){
+            var b = fs.batch();
+            pares.slice(i, i + 400).forEach(function(p){ b.set(fs.doc(p[0]), p[1]); });
+            lotes.push(b.commit());
+          }
+          return Promise.all(lotes);
+        }).then(function(){
+          return marca.set({ migrados: pares.length, fecha: Date.now() });
+        });
+      }).catch(function(e){
+        // Sin permiso sobre lo antiguo = cuenta nueva: se marca y no se vuelve a intentar.
+        if(e && e.code === "permission-denied") return marca.set({ migrados: 0, fecha: Date.now() }).catch(function(){});
+        console.warn("Migración pendiente:", e);
+      });
+    }
+
     return new Promise(function(resolver){
       var listo = false;
       function pedir(msg){
@@ -138,7 +182,7 @@
       auth.onAuthStateChanged(function(u){
         if(!u){ pedir("Inicia sesión para ver tus tareas."); return; }
         var d = document.getElementById("login-shim"); if(d) d.remove();
-        if(!listo){ listo = true; resolver(fs); }
+        if(!listo){ listo = true; migrar(u.uid).then(function(){ resolver(porUsuario(u.uid)); }); }
       });
     });
   }
