@@ -9,3 +9,7 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "764750726416",
   appId: "1:764750726416:web:5255ef999d3eee40f75195"
 };
+
+// ID de cliente OAuth para Google Calendar y Drive (público por diseño).
+// Nunca pongas aquí el "client secret".
+window.GOOGLE_CLIENT_ID = "764750726416-0sf524k69ilbm0n2cj8q3qr3najsp9a1.apps.googleusercontent.com";

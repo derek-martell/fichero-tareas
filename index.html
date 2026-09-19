@@ -8,6 +8,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="google.js"></script>
 <script src="shim.js"></script>
 <title>Fichero de Tareas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2532,9 +2534,9 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   function msgErrorCal(e){
     var c = e && e.code;
     if(c === "needs_reauth")
-      return "Tu conexión con Google Calendar caducó. Reconéctala en claude.ai → Configuración → Conectores y vuelve a intentarlo.";
+      return "Tu conexión con Google caducó. Pulsa «Reconectar Google» arriba y vuelve a intentarlo.";
     if(c === "server_not_connected")
-      return "No hay un Google Calendar conectado a tu cuenta. Agrégalo en claude.ai → Configuración → Conectores.";
+      return "Google no está conectado. Pulsa «Conectar Google» arriba.";
     if(c === "selection_required")
       return "Tienes más de un Google Calendar conectado. Claude te va a preguntar cuál usar: elige uno y repite la acción.";
     if(c === "not_in_manifest")
@@ -2547,7 +2549,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       return "Google Calendar no respondió. Espera unos segundos y vuelve a intentarlo; revisa el calendario antes de repetir, por si el evento sí se creó.";
     if(c === "cancelled") return "Operación cancelada.";
     if(c === "not_granted" || c === "capability_disabled" || c === "capability_removed")
-      return "Esta vista no puede usar el calendario. Abre el tablero desde su enlace en claude.ai.";
+      return "Esta vista no puede usar el calendario. Pulsa «Conectar Google» arriba.";
     if(c === "consent_required")
       return "Falta autorizar Google Calendar para esta página. Vuelve a intentarlo y acepta el aviso.";
     return "No se pudo completar la operación en el calendario.";

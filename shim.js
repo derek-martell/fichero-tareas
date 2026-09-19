@@ -1,7 +1,7 @@
 // Sustituye las capacidades de la plataforma de Artifacts (claude.use) para que el
 // tablero corra como página estática. Misma interfaz que usa el resto del código:
 //   db         -> Firestore (si hay FIREBASE_CONFIG) o localStorage (si no)
-//   mcp        -> null (Google Calendar/Drive quedan para una versión posterior)
+//   mcp        -> google.js (Calendar y Drive vía OAuth), o null si no hay conexión
 //   downloads  -> Blob + <a download>
 (function(){
   "use strict";
@@ -156,6 +156,7 @@
     use: function(nombre){
       if(nombre === "db")        return obtenerDb();
       if(nombre === "downloads") return Promise.resolve(downloads);
+      if(nombre === "mcp")       return window.googleMcp ? window.googleMcp.obtener() : Promise.resolve(null);
       return Promise.resolve(null);   // "mcp" y cualquier otro
     }
   };
