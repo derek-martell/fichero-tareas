@@ -410,6 +410,15 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .padre-tag{font-size:11px;color:var(--faint);display:block;margin-bottom:3px;
            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+.hacer{font-size:11.5px;padding:2px 7px;border-radius:5px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.hacer.es-hoy{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:600}
+.sep-grupo{font-family:Archivo,sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+           color:var(--faint);padding:6px 4px 0}
+.sep-grupo.es-hoy{color:var(--accent)}
+.nudge .btn-hoy.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.hacer-fila{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.hacer-fila input[type=date]{flex:1 1 150px;min-width:0}
+.hacer-fila .btn{padding:6px 10px;font-size:12.5px}
 .nudge{position:absolute;top:7px;right:7px;display:flex;gap:1px;opacity:0;transition:opacity .12s}
 .card:hover .nudge,.card:focus-within .nudge{opacity:1}
 .nudge button{background:var(--surface);border:1px solid var(--line);width:24px;height:24px;line-height:1;font-size:13px;color:var(--muted);padding:0;border-radius:6px}
@@ -679,6 +688,15 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
           <option value="alta">Alta</option>
           <option value="baja">Baja</option>
         </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-hacer">Planeo hacerla el</label>
+      <div class="hacer-fila">
+        <input type="date" id="f-hacer">
+        <button type="button" class="btn" id="f-hacer-hoy">Hoy</button>
+        <button type="button" class="btn" id="f-hacer-man">Mañana</button>
+        <button type="button" class="btn btn-ghost" id="f-hacer-nada">Sin día</button>
       </div>
     </div>
     <div class="row2">
@@ -1262,6 +1280,9 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(vb) return 1;
     return ordenar(a,b);
   }
+  function planeadaHoy(t){
+    return !!t.fechaHacer && t.fechaHacer <= hoyISO() && t.estado === "pendiente";
+  }
   function ordenSiguiente(estado){
     var enCol = lista().filter(function(t){ return t.estado === estado; });
     if(!enCol.length) return 1000;
@@ -1310,7 +1331,24 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
         e.textContent = filtroVista === "todas" && !filtroProyecto ? "Sin tareas" : "Nada con este filtro";
         stack.appendChild(e);
       }
-      items.forEach(function(t,i){ stack.appendChild(ficha(t, i, items.length)); });
+      function separador(txt, n, clase){
+        var sp = document.createElement("div");
+        sp.className = "sep-grupo" + (clase ? " " + clase : "");
+        sp.textContent = txt + " · " + n;
+        stack.appendChild(sp);
+      }
+      var paraHoy = col === "pendiente" ? items.filter(planeadaHoy) : [];
+      if(paraHoy.length){
+        var resto = items.filter(function(t){ return !planeadaHoy(t); });
+        separador("☀ Para hoy", paraHoy.length, "es-hoy");
+        paraHoy.forEach(function(t,i){ stack.appendChild(ficha(t, i, items.length)); });
+        if(resto.length){
+          separador("Más adelante", resto.length, "");
+          resto.forEach(function(t,i){ stack.appendChild(ficha(t, i, items.length)); });
+        }
+      } else {
+        items.forEach(function(t,i){ stack.appendChild(ficha(t, i, items.length)); });
+      }
     });
 
     var blank = document.getElementById("blank");
@@ -1366,6 +1404,16 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       d.className = "date " + (t.estado === "hecho" ? "" : f.cls);
       d.textContent = f.txt + (t.horaLimite ? " " + t.horaLimite : "");
       meta.appendChild(d);
+    }
+
+    if(t.fechaHacer && t.estado === "pendiente"){
+      var ph = document.createElement("span");
+      var atras = t.fechaHacer < hoyISO();
+      ph.className = "hacer" + (planeadaHoy(t) ? " es-hoy" : "");
+      ph.textContent = "☀ " + (atras ? "planeada " + fechaCorta(t.fechaHacer)
+                          : (t.fechaHacer === hoyISO() ? "hoy" : etiquetaFecha(t.fechaHacer).txt));
+      ph.title = "Día en que planeas hacerla";
+      meta.appendChild(ph);
     }
 
     var arr = estadoArranque(t);
@@ -1440,6 +1488,20 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     var nudge = document.createElement("div");
     nudge.className = "nudge";
     var ci = COLS.indexOf(t.estado);
+    if(t.estado === "pendiente"){
+      var bh = document.createElement("button");
+      bh.type = "button";
+      bh.textContent = "☀";
+      bh.className = "btn-hoy" + (planeadaHoy(t) ? " on" : "");
+      bh.title = planeadaHoy(t) ? "Quitar de hoy" : "Hacerla hoy";
+      bh.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        var c = Object.assign({}, t);
+        c.fechaHacer = planeadaHoy(t) ? "" : hoyISO();
+        guardar(c);
+      });
+      nudge.appendChild(bh);
+    }
     [["‹", -1],["›", 1]].forEach(function(par){
       var b = document.createElement("button");
       b.type = "button";
@@ -2058,6 +2120,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     refrescarSubs($("f-proy"));
     $("f-fecha").value  = t ? (t.fecha||"") : "";
     $("f-hora").value   = t ? (t.horaLimite||"") : "";
+    $("f-hacer").value  = t ? (t.fechaHacer||"") : "";
     $("f-est").value    = (t && t.estimadoMin) ? (Math.round(t.estimadoMin/60*100)/100) : "";
     $("f-prio").value   = t ? (t.prioridad||"media") : "media";
     $("f-estado").value = t ? t.estado : (estadoPorDefecto || "pendiente");
@@ -2106,6 +2169,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     editando = null;
   }
 
+  $("f-hacer-hoy").addEventListener("click", function(){ $("f-hacer").value = hoyISO(); });
+  $("f-hacer-man").addEventListener("click", function(){ $("f-hacer").value = masDias(hoyISO(), 1); });
+  $("f-hacer-nada").addEventListener("click", function(){ $("f-hacer").value = ""; });
+
   $("form").addEventListener("submit", function(ev){
     ev.preventDefault();
     var titulo = $("f-titulo").value.trim();
@@ -2126,6 +2193,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     base.subproyecto = $("f-sub").value.trim();
     base.fecha       = $("f-fecha").value || "";
     base.horaLimite  = $("f-hora").value || "";
+    base.fechaHacer  = $("f-hacer").value || "";
     base.estimadoMin = Math.round((parseFloat($("f-est").value) || 0) * 60);
     base.prioridad   = $("f-prio").value;
     base.estado      = estado;
@@ -4530,6 +4598,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
           driveUrl: String(v.driveUrl || ""),
           driveNombre: String(v.driveNombre || ""),
           fecha: String(v.fecha || ""),
+          fechaHacer: String(v.fechaHacer || ""),
           eventoId: String(v.eventoId || ""),
           eventoLink: String(v.eventoLink || ""),
           eventoFecha: String(v.eventoFecha || ""),
