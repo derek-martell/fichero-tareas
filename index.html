@@ -1248,6 +1248,20 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(a.orden !== b.orden) return a.orden - b.orden;
     return (a.creado||0) - (b.creado||0);
   }
+  // "Por hacer": lo que vence antes va primero; lo que no tiene fecha va al final
+  // y conserva el orden manual. A igual plazo, manda la prioridad.
+  function ordenarPorPlazo(a,b){
+    var va = vencimiento(a), vb = vencimiento(b);
+    if(va && vb){
+      if(va.getTime() !== vb.getTime()) return va.getTime() - vb.getTime();
+      var pa = PESO_PRIO[a.prioridad], pb = PESO_PRIO[b.prioridad];
+      if(pa !== pb) return (pa === undefined ? 1 : pa) - (pb === undefined ? 1 : pb);
+      return ordenar(a,b);
+    }
+    if(va) return -1;
+    if(vb) return 1;
+    return ordenar(a,b);
+  }
   function ordenSiguiente(estado){
     var enCol = lista().filter(function(t){ return t.estado === estado; });
     if(!enCol.length) return 1000;
@@ -1288,7 +1302,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
         // Las subtareas viven dentro de su ficha; solo salen al tablero mientras corren.
         if(t.padre && tareas[t.padre] && t.estado !== "curso") return false;
         return true;
-      }).sort(ordenar);
+      }).sort(col === "pendiente" ? ordenarPorPlazo : ordenar);
       $("c-"+col).textContent = items.length;
       if(!items.length && !vacioTotal){
         var e = document.createElement("div");
