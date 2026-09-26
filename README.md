@@ -8,6 +8,9 @@ Tablero personal de tareas y tracker de productividad, en español.
 
 - Tres columnas: **Por hacer / En curso / Hecho**, con fichas arrastrables y subtareas.
 - Cronómetro por ficha para medir el tiempo real de trabajo.
+- Contra olvidos: el navegador pide confirmación si cierras la pestaña con fichas En curso,
+  y cada hora te pregunta "¿Sigues haciendo esta tarea?" con una ventana, una notificación
+  del navegador y, con Google conectado, un recordatorio por correo desde Calendar.
 - Panel **Hoy** con la agenda del día, y vistas de día, semana y mes.
 - Conexión opcional con Google Calendar y Drive.
 - Exportación a PDF, Excel y CSV.

@@ -295,6 +295,23 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
            border-radius:5px;line-height:1}
 .cierre .x:hover{background:var(--surface-2);color:var(--ink)}
 
+/* ---------- ¿sigues con esta ficha? ---------- */
+.guard-cierre{margin:0 0 16px;font-size:12.5px;color:var(--muted)}
+.guard-cierre b{color:var(--ink);font-weight:600}
+.sigues{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+        padding:16px;background:color-mix(in srgb,var(--ink) 40%,transparent)}
+.sigues-card{width:min(440px,100%);border:1px solid var(--line);border-left:4px solid var(--accent);
+             background:var(--surface);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);
+             font-size:13.5px;color:var(--ink)}
+.sigues-card h3{margin:0 0 6px;font-size:15px;font-weight:600;font-family:Archivo,sans-serif}
+.sigues-card p{margin:0 0 12px;line-height:1.45}
+.sigues-card p span{color:var(--muted);display:block;font-size:12.5px}
+.sigues-fila{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.sigues-fila .btn{font-size:12.5px;padding:5px 11px}
+.sigues-fila .btn-primary{font-size:12.5px;padding:5px 11px}
+.sigues-fila input[type=time]{font-size:12.5px;padding:5px 8px;width:auto;border-radius:6px}
+.sigues-fila label{color:var(--muted);font-size:12.5px}
+
 /* ---------- menú desplegable ---------- */
 .menu-wrap{position:relative;display:inline-block}
 .menu{
@@ -687,6 +704,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   <div class="olvido" id="olvido" hidden></div>
   <div class="cierre" id="cierre" hidden></div>
+  <p class="guard-cierre" id="guard-cierre" role="status" hidden></p>
+  <div class="sigues" id="sigues" role="dialog" aria-modal="true" aria-labelledby="sigues-t" hidden>
+    <div class="sigues-card" id="sigues-card"></div>
+  </div>
 
   <nav class="tally" aria-label="Resumen">
     <button id="t-todas" aria-pressed="true"><span class="n" id="n-todas">0</span><span class="k">Todas</span></button>
@@ -1132,6 +1153,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       mcp.callTool(CAL, "delete_event", {eventId: t.avisoId, notificationLevel: "NONE"})
         .catch(function(){});
     }
+    if(t && t.recordatorioId) quitarRecordatorio(t.recordatorioId);
     if(t && t.eventoId && mcp){
       mcp.callTool(CAL, "delete_event", {
         eventId: t.eventoId,
@@ -1251,6 +1273,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       id: nuevoId(), creado: Date.now(), orden: ordenSiguienteHija(padreId),
       completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
       tramoId: "", tramoInicio: 0, tramoUltimo: 0, avisado: 0,
+      sigueDesde: 0, recordatorioId: "",
       titulo: titulo, padre: padreId,
       proyecto: p.proyecto || "", subproyecto: p.subproyecto || "",
       fecha: "", prioridad: p.prioridad || "media", estado: "pendiente",
@@ -1428,6 +1451,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
     renderRitmo();
     renderOlvido();
+    renderGuardCierre();
+    chequearSigues();
     renderRegistro();
     renderFiltros();
     renderDatalist();
@@ -1918,24 +1943,289 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       ya.className = "btn"; ya.type = "button";
       ya.textContent = "Ya no — cerrar" + (t.tramoId ? " en " + fechaHora(corte).slice(-5) : "");
       ya.addEventListener("click", function(){
-        var viva = tareas[t.id] || t;
-        if(viva.tramoId) cerrarTramo(viva, corte).catch(function(){
-          toast("Cerré la ficha, pero no pude recortar el bloque del calendario.");
-        });
-        // El tiempo en curso del tablero también se corta en la última actividad.
-        var copia = Object.assign({}, tareas[t.id] || t);
-        copia.msEnCurso = (copia.msEnCurso||0) + Math.max(0, corte - copia.cursoDesde);
-        copia.cursoDesde = 0;
-        copia.estado = "pendiente";
-        copia.orden = ordenSiguiente("pendiente");
-        copia.avisado = 0;
-        copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0;
-        guardar(copia);
-        toast("Devuelta a Por hacer, con el tiempo recortado");
+        devolverAPorHacer(t, corte);
       });
       fila.appendChild(ya);
 
       caja.appendChild(fila);
+    });
+  }
+
+  // Devuelve a Por hacer una ficha que se quedó en curso, cortando su tiempo en `corteMs`.
+  function devolverAPorHacer(t, corteMs){
+    var viva = tareas[t.id] || t;
+    if(viva.tramoId) cerrarTramo(viva, corteMs).catch(function(){
+      toast("Cerré la ficha, pero no pude recortar el bloque del calendario.");
+    });
+    if(viva.recordatorioId) quitarRecordatorio(viva.recordatorioId);
+    // El tiempo en curso del tablero también se corta en la última actividad.
+    var copia = Object.assign({}, tareas[t.id] || t);
+    copia.msEnCurso = (copia.msEnCurso||0) + Math.max(0, corteMs - copia.cursoDesde);
+    copia.cursoDesde = 0;
+    copia.sigueDesde = 0;
+    copia.recordatorioId = "";
+    copia.estado = "pendiente";
+    copia.orden = ordenSiguiente("pendiente");
+    copia.avisado = 0;
+    copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0;
+    guardar(copia);
+    toast("Devuelta a Por hacer, con el tiempo recortado");
+  }
+
+  // ---------- no cerrar con fichas en curso ----------
+  function enCurso(){
+    return lista().filter(function(t){ return t.estado === "curso"; });
+  }
+  function hayEnCurso(){
+    return enCurso().length > 0;
+  }
+  // El texto del diálogo lo pone el navegador; por eso el motivo queda escrito en pantalla.
+  window.addEventListener("beforeunload", function(e){
+    if(!hayEnCurso()) return;
+    e.preventDefault();
+    e.returnValue = "";
+  });
+  function renderGuardCierre(){
+    var el = $("guard-cierre");
+    var n = enCurso().length;
+    if(!n){ el.hidden = true; el.textContent = ""; return; }
+    el.hidden = false;
+    el.textContent = "";
+    var b = document.createElement("b");
+    b.textContent = "Tienes " + n + (n === 1 ? " ficha en curso" : " fichas en curso") + ":";
+    el.appendChild(b);
+    el.appendChild(document.createTextNode(
+      " pásala" + (n === 1 ? "" : "s") + " a Por hacer antes de cerrar la pestaña, o el cronómetro seguirá corriendo."));
+  }
+
+  // ---------- ¿sigues con esta ficha? ----------
+  var AVISO_SIGUES = 3600000;   // cada cuánto se pregunta por una ficha en curso
+  var siguesId = null;          // ficha por la que se está preguntando ahora
+  var tituloPagina = document.title;
+  var parpadeo = null;
+
+  function refSigues(t){
+    return Math.max(t.cursoDesde || 0, t.sigueDesde || 0);
+  }
+  // Última hora en que constaba que seguías en esto: ahí se corta si ya no.
+  function corteSigues(t){
+    return Math.max(t.tramoUltimo || 0, t.sigueDesde || 0, t.tramoInicio || 0, t.cursoDesde || 0);
+  }
+
+  function chequearSigues(){
+    if(siguesId){
+      var abierta = tareas[siguesId];
+      if(abierta && abierta.estado === "curso") return;   // ya se está preguntando
+      cerrarSigues();
+    }
+    var ahora = Date.now();
+    var toca = enCurso().filter(function(t){
+      return t.cursoDesde && ahora - refSigues(t) >= AVISO_SIGUES;
+    }).sort(function(a, b){ return refSigues(a) - refSigues(b); });
+    if(!toca.length) return;
+    siguesId = toca[0].id;
+    renderSigues();
+    notificarSigues(toca[0]);
+  }
+  setInterval(chequearSigues, 60000);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden) chequearSigues();
+  });
+
+  function cerrarSigues(){
+    siguesId = null;
+    renderSigues();
+  }
+
+  function notificarSigues(t){
+    var texto = "⚠ ¿Sigues con " + recortar(t.titulo, 30) + "?";
+    clearInterval(parpadeo);
+    var on = false;
+    parpadeo = setInterval(function(){
+      on = !on;
+      document.title = on ? texto : tituloPagina;
+    }, 1000);
+    if(!("Notification" in window) || Notification.permission !== "granted") return;
+    try{
+      var n = new Notification("¿Sigues con “" + recortar(t.titulo, 40) + "”?", {
+        body: "Lleva " + duracion(Date.now() - t.cursoDesde) + " en curso. Si ya no, devuélvela a Por hacer.",
+        tag: "sigues-" + t.id,
+        requireInteraction: true
+      });
+      n.onclick = function(){ window.focus(); n.close(); };
+    }catch(e){ /* algunos móviles solo notifican desde un service worker */ }
+  }
+
+  function renderSigues(){
+    var capa = $("sigues"), card = $("sigues-card");
+    var t = siguesId && tareas[siguesId];
+    if(!t){
+      siguesId = null;
+      capa.hidden = true; card.innerHTML = "";
+      clearInterval(parpadeo); parpadeo = null;
+      document.title = tituloPagina;
+      return;
+    }
+    capa.hidden = false;
+    card.innerHTML = "";
+
+    var h = document.createElement("h3");
+    h.id = "sigues-t";
+    h.textContent = "¿Sigues haciendo esta tarea?";
+    card.appendChild(h);
+
+    var p = document.createElement("p");
+    var b = document.createElement("b");
+    b.textContent = t.titulo;
+    p.appendChild(b);
+    p.appendChild(document.createTextNode(" lleva " + duracion(Date.now() - t.cursoDesde) + " en curso."));
+    var sub = document.createElement("span");
+    sub.textContent = "Si ya no estás en esto, devuélvela a Por hacer e indica hasta qué hora trabajaste.";
+    p.appendChild(sub);
+    card.appendChild(p);
+
+    var f1 = document.createElement("div");
+    f1.className = "sigues-fila";
+    var sigo = document.createElement("button");
+    sigo.type = "button"; sigo.className = "btn-primary"; sigo.textContent = "Sigo en esto";
+    sigo.addEventListener("click", function(){
+      var copia = Object.assign({}, tareas[t.id] || t);
+      copia.sigueDesde = Date.now();
+      guardar(copia);
+      moverRecordatorio(copia);
+      cerrarSigues();
+      toast("Te vuelvo a preguntar en una hora");
+      chequearSigues();   // por si hay otra ficha esperando
+    });
+    f1.appendChild(sigo);
+    card.appendChild(f1);
+
+    var f2 = document.createElement("div");
+    f2.className = "sigues-fila";
+    var lab = document.createElement("label");
+    lab.htmlFor = "sigues-hora";
+    lab.textContent = "Ya no, lo dejé a las";
+    f2.appendChild(lab);
+    var inp = document.createElement("input");
+    inp.type = "time"; inp.id = "sigues-hora";
+    var c = new Date(corteSigues(t));
+    inp.value = pad2(c.getHours()) + ":" + pad2(c.getMinutes());
+    f2.appendChild(inp);
+    var ya = document.createElement("button");
+    ya.type = "button"; ya.className = "btn"; ya.textContent = "Devolver a Por hacer";
+    ya.addEventListener("click", function(){
+      var viva = tareas[t.id] || t;
+      devolverAPorHacer(viva, horaDeCorte(viva, inp.value));
+      cerrarSigues();
+      chequearSigues();
+    });
+    f2.appendChild(ya);
+    card.appendChild(f2);
+
+    if("Notification" in window && Notification.permission === "default"){
+      var f3 = document.createElement("div");
+      f3.className = "sigues-fila";
+      var perm = document.createElement("button");
+      perm.type = "button"; perm.className = "btn"; perm.textContent = "Activar avisos del navegador";
+      perm.title = "Así te llega el aviso aunque estés en otra pestaña o ventana";
+      perm.addEventListener("click", function(){
+        Notification.requestPermission().then(function(){ renderSigues(); });
+      });
+      f3.appendChild(perm);
+      card.appendChild(f3);
+    }
+
+    sigo.focus();
+  }
+
+  // Convierte "HH:MM" en la hora más reciente que no sea futura, sin bajar del inicio.
+  function horaDeCorte(t, horaTexto){
+    var ahora = Date.now();
+    if(!horaTexto) return corteSigues(t);
+    var hp = horaTexto.split(":");
+    var d = new Date(ahora);
+    d.setHours(parseInt(hp[0],10) || 0, parseInt(hp[1],10) || 0, 0, 0);
+    if(d.getTime() > ahora) d.setDate(d.getDate() - 1);
+    return Math.min(ahora, Math.max(t.cursoDesde || 0, d.getTime()));
+  }
+
+  // ---------- recordatorio en el calendario (respaldo con la pestaña cerrada) ----------
+  // Llega como correo y aviso del móvil. Va como "libre" para no contar en la agenda.
+  var cerrojoRecordatorio = {};
+
+  function cuerpoRecordatorio(t, inicio){
+    return {
+      summary: "❓ ¿Sigues con «" + t.titulo + "»?",
+      description: "Esta ficha sigue En curso en tu Fichero de Tareas. " +
+                   "Si ya no estás en esto, abre el fichero y devuélvela a Por hacer.\n" +
+                   location.href.split("#")[0],
+      startTime: isoDe(inicio),
+      endTime: isoDe(new Date(inicio.getTime() + 5*60000)),
+      timeZone: TZ,
+      availability: "AVAILABILITY_FREE",
+      overrideReminders: [{method:"email", minutes:0}, {method:"popup", minutes:0}]
+    };
+  }
+  function inicioRecordatorio(t){
+    var base = refSigues(t) || Date.now();
+    return new Date(Math.max(base + AVISO_SIGUES, Date.now() + 60000));
+  }
+
+  async function crearRecordatorio(t){
+    if(!mcp) return;
+    var vivo = tareas[t.id] || t;
+    if(vivo.estado !== "curso" || vivo.recordatorioId || cerrojoRecordatorio[t.id]) return;
+    cerrojoRecordatorio[t.id] = true;
+    try{
+      var res = await mcp.callTool(CAL, "create_event", cuerpoRecordatorio(vivo, inicioRecordatorio(vivo)));
+      var ev = res && res.payload;
+      if(!ev || !ev.id) return;
+      var ahora = tareas[t.id];
+      // Si salió de curso mientras se creaba, el recordatorio sobra.
+      if(!ahora || ahora.estado !== "curso" || ahora.recordatorioId){
+        quitarRecordatorio(ev.id);
+        return;
+      }
+      var copia = Object.assign({}, ahora);
+      copia.recordatorioId = ev.id;
+      guardar(copia);
+    } finally {
+      delete cerrojoRecordatorio[t.id];
+    }
+  }
+
+  function moverRecordatorio(t){
+    if(!mcp) return;
+    if(!t.recordatorioId){
+      crearRecordatorio(t).catch(function(){});
+      return;
+    }
+    var cuerpo = cuerpoRecordatorio(t, inicioRecordatorio(t));
+    cuerpo.eventId = t.recordatorioId;
+    cuerpo.notificationLevel = "NONE";
+    mcp.callTool(CAL, "update_event", cuerpo).catch(function(){
+      // Quizá se borró a mano en el calendario: se crea uno nuevo.
+      var copia = Object.assign({}, tareas[t.id] || t);
+      if(copia.recordatorioId !== t.recordatorioId) return;
+      copia.recordatorioId = "";
+      guardar(copia);
+      crearRecordatorio(copia).catch(function(){
+        toast("No pude reprogramar el recordatorio en el calendario.");
+      });
+    });
+  }
+
+  function quitarRecordatorio(id){
+    if(!mcp || !id) return;
+    mcp.callTool(CAL, "delete_event", {eventId: id, notificationLevel: "NONE"}).catch(function(){});
+  }
+
+  // Fichas que ya estaban en curso al conectar Google.
+  function conciliarRecordatorios(){
+    if(!mcp) return;
+    enCurso().forEach(function(t){
+      if(t.recordatorioId || cerrojoRecordatorio[t.id]) return;
+      crearRecordatorio(t).catch(function(){});
     });
   }
 
@@ -2115,9 +2405,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(anterior === "curso" && nuevo !== "curso"){
       copia.msEnCurso = (copia.msEnCurso||0) + (copia.cursoDesde ? now - copia.cursoDesde : 0);
       copia.cursoDesde = 0;
+      copia.sigueDesde = 0;
+      if(copia.recordatorioId){ quitarRecordatorio(copia.recordatorioId); copia.recordatorioId = ""; }
     }
     if(nuevo === "curso" && anterior !== "curso"){
       copia.cursoDesde = now;
+      copia.sigueDesde = 0;
       if(!copia.iniciado) copia.iniciado = now;
     }
     if(nuevo === "hecho"){
@@ -2338,7 +2631,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     var base = editando ? Object.assign({}, tareas[editando]) : {
       id: nuevoId(), creado: Date.now(), orden: ordenSiguiente(estado),
       completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
-      tramoId: "", tramoInicio: 0,
+      tramoId: "", tramoInicio: 0, sigueDesde: 0, recordatorioId: "",
       horaLimite: "", estimadoMin: 0, avisoId: "", avisoLink: "", avisoHora: ""
     };
     var anterior = editando ? tareas[editando].estado : null;
@@ -3488,6 +3781,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       id: nuevoId(), creado: Date.now(), orden: ordenSiguiente("pendiente"),
       completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
       tramoId: "", tramoInicio: 0, tramoUltimo: 0, avisado: 0,
+      sigueDesde: 0, recordatorioId: "",
       titulo: ev.summary || "(sin título)",
       proyecto: "", subproyecto: "",
       fecha: fechaAgenda(), prioridad: "media", estado: "pendiente",
@@ -4284,6 +4578,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   // Si el registro está activo y algo lleva rato en curso sin bloque, se abre solo.
   function conciliarTramos(){
+    conciliarRecordatorios();
     if(!mcp || !registrarTiempo) return;
     lista().forEach(function(t){
       if(t.estado !== "curso" || t.tramoId || cerrojoTramo[t.id]) return;
@@ -4437,6 +4732,11 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   function trasTransicion(t, anterior, nuevo){
     if(!mcp) return;
+    if(nuevo === "curso" && anterior !== "curso"){
+      crearRecordatorio(t).catch(function(){
+        toast("No pude programar el recordatorio de la hora en el calendario.");
+      });
+    }
     if(nuevo === "curso" && anterior !== "curso" && registrarTiempo){
       abrirTramo(t).catch(function(e){
         toast("No pude anotar el inicio en el calendario. " + msgErrorCal(e));
@@ -4492,7 +4792,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       var t = {
         id: nuevoId(), creado: Date.now(), orden: ordenSiguiente("pendiente"),
         completado: 0, iniciado: 0, cursoDesde: 0, msEnCurso: 0,
-        tramoId: "", tramoInicio: 0,
+        tramoId: "", tramoInicio: 0, sigueDesde: 0, recordatorioId: "",
         titulo: titulo, proyecto: proy, subproyecto: sub,
         fecha: fecha, prioridad: "media", estado: "pendiente",
         notas: (ev.conferenceUrl ? "Meet: " + ev.conferenceUrl + "\n" : "") +
@@ -4772,6 +5072,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
           creado: Number(v.creado) || 0,
           iniciado: Number(v.iniciado) || 0,
           cursoDesde: Number(v.cursoDesde) || 0,
+          sigueDesde: Number(v.sigueDesde) || 0,
+          recordatorioId: String(v.recordatorioId || ""),
           msEnCurso: Number(v.msEnCurso) || 0,
           completado: Number(v.completado) || 0
         };
