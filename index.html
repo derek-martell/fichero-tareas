@@ -1979,13 +1979,30 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   function hayEnCurso(){
     return enCurso().length > 0;
   }
-  // El texto del diálogo lo pone el navegador; por eso el motivo queda escrito en pantalla.
-  window.addEventListener("beforeunload", function(e){
-    if(!hayEnCurso()) return;
-    e.preventDefault();
-    e.returnValue = "";
+  // Ningún navegador deja impedir el cierre: solo pedir confirmación, y solo si
+  // hubo un clic o una tecla en la página. Por eso el motivo queda escrito en pantalla.
+  var huboInteraccion = false;
+  ["pointerdown", "keydown"].forEach(function(ev){
+    window.addEventListener(ev, function(){
+      if(huboInteraccion) return;
+      huboInteraccion = true;
+      renderGuardCierre();
+    }, {capture: true, once: true});
   });
+  function alCerrar(e){
+    e.preventDefault();
+    e.returnValue = "Tienes fichas en curso.";
+    return e.returnValue;
+  }
+  // El listener solo existe mientras hay fichas en curso.
+  var guardaActiva = false;
+  function sincronizarGuardaCierre(){
+    var debe = hayEnCurso();
+    if(debe && !guardaActiva){ window.addEventListener("beforeunload", alCerrar); guardaActiva = true; }
+    if(!debe && guardaActiva){ window.removeEventListener("beforeunload", alCerrar); guardaActiva = false; }
+  }
   function renderGuardCierre(){
+    sincronizarGuardaCierre();
     var el = $("guard-cierre");
     var n = enCurso().length;
     if(!n){ el.hidden = true; el.textContent = ""; return; }
@@ -1996,6 +2013,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     el.appendChild(b);
     el.appendChild(document.createTextNode(
       " pásala" + (n === 1 ? "" : "s") + " a Por hacer antes de cerrar la pestaña, o el cronómetro seguirá corriendo."));
+    if(!huboInteraccion){
+      el.appendChild(document.createTextNode(
+        " Haz clic en la página para que el navegador te pida confirmación al cerrar."));
+    }
   }
 
   // ---------- ¿sigues con esta ficha? ----------
