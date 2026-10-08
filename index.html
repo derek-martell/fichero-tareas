@@ -127,6 +127,14 @@ body{
   font-weight:700;font-size:26px;letter-spacing:-.02em;margin:0;text-wrap:balance;
 }
 .brand p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.brand-status{display:flex;align-items:center;gap:8px;margin-top:4px}
+.brand-status #sub{margin:0}
+.sync-badge{display:inline-flex;align-items:center;gap:6px;color:var(--done);background:var(--done-soft);
+            border:1px solid color-mix(in srgb,var(--done) 20%,transparent);border-radius:999px;
+            padding:3px 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.sync-badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.sync-badge.syncing{color:var(--warn);background:var(--warn-soft)}
+.sync-badge.offline{color:var(--danger);background:var(--danger-soft)}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 
 button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent;transition:background-color .15s var(--ease),border-color .15s var(--ease),color .15s var(--ease),transform .12s var(--ease),box-shadow .15s var(--ease)}
@@ -355,6 +363,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .pace div{display:flex;align-items:baseline;gap:7px;padding:6px 0}
 .pace .n{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink)}
 .pace .k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.pace .focus-task{font-size:12.5px;color:var(--muted);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pace .sep{width:1px;background:var(--line);padding:0;margin:8px 0}
 
 /* ---------- filtros ---------- */
@@ -437,6 +446,21 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   font-weight:600;font-size:14px;line-height:1.4;overflow-wrap:anywhere;margin-bottom:8px;padding-right:4px;
   letter-spacing:-.01em;color:var(--ink);transition:color .18s ease;
 }
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:9px;min-height:22px}
+.card-head .tag{margin-right:auto}
+.card-main{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px}
+.card-copy{min-width:0;flex:1}
+.card-main .title{margin:0}
+.card-note{color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:3px;display:-webkit-box;
+           -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.task-check{width:44px;height:44px;min-width:44px;padding:0;margin:-10px 0 0 -10px;border-radius:10px;
+            border:0;background:transparent;color:#fff;
+            display:grid;place-items:center;font-size:12px;line-height:1}
+.task-check::before{content:"";width:20px;height:20px;border-radius:6px;border:1px solid var(--line-strong);background:var(--surface-2);display:grid;place-items:center}
+.task-check:hover{background:var(--accent-soft)}
+.task-check.checked::before{content:"✓";background:var(--done);border-color:var(--done)}
+.estimate{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);padding:2px 7px;
+          border-radius:6px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap}
 .card.is-done{opacity:.78}
 .card.is-done:hover{opacity:1}
 .card.is-done .title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
@@ -577,6 +601,7 @@ a.cal-ver:hover{background:var(--accent-soft)}
 .cal-nota{margin:9px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted)}
 .cal-nota.error{color:var(--danger)}
 .agenda{font-size:11.5px;padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent);border:1px solid transparent;font-weight:500;text-decoration:none;white-space:nowrap}
+.agenda-accion{font:inherit;cursor:pointer}
 a.agenda:hover{filter:brightness(.95)}
 .drive{font-size:11.5px;padding:2px 7px 2px 6px;border-radius:5px;background:var(--surface-2);
        color:var(--muted);border:1px solid var(--line);font-weight:500;text-decoration:none;
@@ -644,10 +669,82 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 .registro.activo{border-left-color:var(--done)}
 .bar a{color:var(--accent);font-weight:500}
 
+/* ---------- navegación móvil ---------- */
+.kanban-tabs,.mobile-nav{display:none}
+
 @media (max-width:820px){
-  .board{grid-template-columns:1fr}
-  .col{background:transparent}
+  body{font-size:16px;padding-bottom:84px}
+  .wrap{padding:12px 10px 100px;max-width:680px}
+  .top{align-items:center;gap:10px;margin:0 -2px 12px;padding:3px 2px 11px;border-bottom:1px solid var(--line)}
+  .brand{min-width:0;flex:1}
+  .brand h1{font-size:18px;line-height:1.15}
+  .brand-status{flex-wrap:wrap;gap:5px}
+  .brand p{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+  .sync-badge{font-size:10px;padding:2px 7px}
+  .actions{gap:6px;justify-content:flex-end}
+  .actions .tema{width:44px;height:30px}
+  .tema .bola{width:22px;height:22px}
+  .tema[aria-checked="true"] .bola{transform:translateX(14px)}
+  .tema svg{top:6px;width:16px;height:16px}.tema .sol{left:6px}.tema .luna{right:6px}
+  .actions .btn,.actions .btn-primary{min-height:44px;padding:9px 12px}
+  .actions #exportar{display:none}
+  .hoy{border-radius:16px;padding:10px;margin-bottom:10px}
+  .hoy-cab{align-items:center;gap:6px;flex-wrap:wrap}
+  .hoy-cab h2{font-size:18px;margin-right:auto}
+  .nav-dia{width:44px;height:44px}
+  .vistas{order:3;width:100%;justify-content:space-between;border-radius:12px}
+  .vistas button{min-height:40px;flex:1}
+  .tally{display:flex;overflow-x:auto;scrollbar-width:none;gap:7px;margin:0 -10px 10px;padding:0 10px 2px;scroll-snap-type:x proximity}
+  .tally::-webkit-scrollbar{display:none}
+  .tally button{display:flex;align-items:center;gap:6px;flex:0 0 auto;min-height:44px;padding:8px 12px;border-radius:999px;scroll-snap-align:start}
+  .tally button::before{display:none}
+  .tally .n{font-size:13px;order:2}.tally .k{font-size:12px;letter-spacing:0;text-transform:none;margin:0;order:1}
+  .pace{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);
+        border-radius:16px;margin:0 0 9px;padding:12px 14px;box-shadow:var(--shadow)}
+  .pace div{display:flex;flex-direction:column;gap:0;padding:0}
+  .pace div:first-child{grid-column:1/-1;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:9px}
+  .pace .n{font-size:19px;color:var(--accent)}
+  .pace .k{font-size:11px;letter-spacing:.02em;text-transform:none}
+  .pace .sep{display:none}
+  .registro{min-height:58px;border-radius:14px;margin-bottom:10px;padding:10px 12px}
+  .filters{overflow-x:auto;flex-wrap:nowrap;margin:0 -10px 10px;padding:0 10px 3px;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}.filters .chip{min-height:40px;flex:none}
+  .kanban-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--surface-2);
+               border:1px solid var(--line);border-radius:14px;padding:3px;margin-bottom:8px;position:sticky;top:0;z-index:20}
+  .kanban-tabs button{min-height:44px;background:transparent;color:var(--muted);border:0;border-radius:11px;
+                      padding:7px 5px;font-size:12px;font-weight:600;white-space:nowrap}
+  .kanban-tabs button[aria-selected="true"]{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}
+  .kanban-tabs .tab-count{font-family:"IBM Plex Mono",monospace;margin-left:3px}
+  .board{display:block}
+  .board .col{display:none;background:transparent;border:0;padding:0}
+  .board[data-mobile-col="pendiente"] .col[data-col="pendiente"],
+  .board[data-mobile-col="curso"] .col[data-col="curso"],
+  .board[data-mobile-col="hecho"] .col[data-col="hecho"]{display:flex;animation:tab-in .18s var(--ease)}
+  @keyframes tab-in{from{opacity:.2;transform:translateX(5px)}to{opacity:1;transform:none}}
+  .col-head{padding:5px 4px 9px;margin-bottom:8px}
+  .col-head h2{font-size:13px;letter-spacing:0;text-transform:none}
+  .col-head .add{width:44px;height:44px;border-radius:12px;font-size:20px}
+  .stack{gap:9px;min-height:180px}
+  .card{border-left-width:1px;border-radius:16px;padding:12px;cursor:pointer;box-shadow:0 3px 12px rgba(35,32,95,.06)}
+  .card:hover{transform:none}.card-head{margin-bottom:8px}.card .tag,.card .prio{font-size:10px}
+  .card-main .title{font-size:14px}
+  .meta{gap:5px}.meta>*{min-height:26px;display:inline-flex;align-items:center}
   .nudge{opacity:1}
+  .nudge button{min-width:36px;min-height:36px}
+  .foot{padding:12px 4px 0;margin-top:12px;font-size:11px;text-align:center;justify-content:center}
+  .foot #estado-db{display:none}
+  .toast{bottom:94px;max-width:calc(100% - 24px);text-align:center}
+  .mobile-nav{display:grid;grid-template-columns:1fr 1fr 72px 1fr 1fr;align-items:end;position:fixed;
+              z-index:70;left:0;right:0;bottom:0;padding:7px max(8px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+              background:color-mix(in srgb,var(--surface) 94%,transparent);border-top:1px solid var(--line);
+              box-shadow:0 -8px 24px rgba(25,28,44,.08);backdrop-filter:blur(16px)}
+  .mobile-nav button{min-height:48px;background:transparent;border:0;color:var(--muted);font-size:10px;font-weight:600;
+                     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px}
+  .mobile-nav button span{font-size:18px;line-height:1}
+  .mobile-nav button[aria-current="page"]{color:var(--accent)}
+  .mobile-nav .mobile-add{width:58px;height:58px;min-height:58px;justify-self:center;margin-top:-25px;border-radius:50%;
+                          background:var(--accent);color:var(--on-accent);font-size:30px;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 38%,transparent)}
+  .mobile-nav .mobile-add span{font-size:30px}
 }
 @media (prefers-reduced-motion: reduce){
   *{transition:none!important;animation:none!important}
@@ -660,7 +757,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   <header class="top">
     <div class="brand">
       <h1>Fichero de Tareas</h1>
-      <p id="sub">Cargando…</p>
+      <div class="brand-status"><p id="sub">Cargando…</p><span class="sync-badge syncing" id="sync-badge">Conectando</span></div>
     </div>
     <div class="actions">
       <button class="tema" id="tema" type="button" role="switch" aria-checked="false"
@@ -718,7 +815,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   </nav>
 
   <div class="pace" id="pace" hidden>
-    <div><span class="n" id="p-curso">0</span><span class="k">En curso ahora</span></div>
+    <div><span class="n" id="p-curso">0</span><span class="k">En curso ahora</span><span class="focus-task" id="p-activa">Sin ficha activa</span></div>
     <div class="sep"></div>
     <div><span class="n" id="p-semana">0</span><span class="k">Terminadas · 7 días</span></div>
     <div class="sep"></div>
@@ -735,7 +832,13 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   <div class="filters" id="filtros"></div>
 
-  <main class="board" id="board">
+  <nav class="kanban-tabs" id="kanban-tabs" aria-label="Columnas del tablero">
+    <button type="button" data-mobile-col="pendiente" aria-selected="true">Por hacer <span class="tab-count" id="m-pendiente">0</span></button>
+    <button type="button" data-mobile-col="curso" aria-selected="false">En curso <span class="tab-count" id="m-curso">0</span></button>
+    <button type="button" data-mobile-col="hecho" aria-selected="false">Hecho <span class="tab-count" id="m-hecho">0</span></button>
+  </nav>
+
+  <main class="board" id="board" data-mobile-col="pendiente">
     <section class="col" data-col="pendiente">
       <div class="col-head"><h2>Por hacer</h2><span class="count" id="c-pendiente">0</span>
         <button class="btn-ghost add" data-add="pendiente" title="Agregar a Por hacer">+</button></div>
@@ -758,6 +861,14 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     <span>Arrastra las fichas entre columnas, o usa ‹ › para moverlas. Abre una ficha para agendarla en tu calendario.</span>
   </footer>
 </div>
+
+<nav class="mobile-nav" aria-label="Navegación principal móvil">
+  <button type="button" id="mob-tablero" aria-current="page"><span aria-hidden="true">▦</span>Tablero</button>
+  <button type="button" id="mob-hoy"><span aria-hidden="true">□</span>Hoy</button>
+  <button type="button" class="mobile-add" id="mob-nueva" aria-label="Nueva tarea"><span aria-hidden="true">+</span></button>
+  <button type="button" id="mob-cursos"><span aria-hidden="true">▱</span>Cursos</button>
+  <button type="button" id="mob-exportar"><span aria-hidden="true">⇩</span>Exportar</button>
+</nav>
 
 <dialog id="dlg">
   <div class="dlg-head"><h3 id="dlg-titulo">Nueva tarea</h3></div>
@@ -1025,11 +1136,26 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   var filtroVista = "todas";
   var editando = null;
   var mcp = null;
+  var googleConectado = false;
   var registrarTiempo = false;
   var TZ = (window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone) || "America/Lima";
   var CAL = "Google Calendar";
 
   var $ = function(id){ return document.getElementById(id); };
+  var columnaMovil = "pendiente";
+  try{
+    var colGuardada = localStorage.getItem("fichero-columna-movil");
+    if(COLS.indexOf(colGuardada) >= 0) columnaMovil = colGuardada;
+  }catch(e){}
+  function seleccionarColMovil(col){
+    if(COLS.indexOf(col) < 0) return;
+    columnaMovil = col;
+    $("board").dataset.mobileCol = col;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mobile-col]"), function(b){
+      b.setAttribute("aria-selected", String(b.dataset.mobileCol === col));
+    });
+    try{ localStorage.setItem("fichero-columna-movil", col); }catch(e){}
+  }
 
   // ---------- fechas ----------
   function hoyISO(){
@@ -1470,6 +1596,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
         return true;
       }).sort(col === "pendiente" ? ordenarPorPlazo : ordenar);
       $("c-"+col).textContent = items.length;
+      $("m-"+col).textContent = items.length;
       if(!items.length && !vacioTotal){
         var e = document.createElement("div");
         e.className = "empty";
@@ -1527,22 +1654,55 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       el.appendChild(pt);
     }
 
-    var h = document.createElement("div");
-    h.className = "title";
-    h.textContent = t.titulo;
-    el.appendChild(h);
-
-    var meta = document.createElement("div");
-    meta.className = "meta";
-
+    var cab = document.createElement("div");
+    cab.className = "card-head";
     if(t.proyecto){
       var tag = document.createElement("span");
       tag.className = "tag";
       tag.textContent = t.subproyecto ? t.proyecto + " › " + t.subproyecto : t.proyecto;
       tag.title = t.subproyecto ? t.proyecto + " › " + t.subproyecto : t.proyecto;
       tag.style.color = "color-mix(in srgb, " + colorProyecto(t.proyecto) + " 45%, var(--ink))";
-      meta.appendChild(tag);
+      cab.appendChild(tag);
     }
+    if(t.prioridad){
+      var p = document.createElement("span");
+      p.className = "prio " + t.prioridad;
+      p.innerHTML = '<i></i>';
+      p.appendChild(document.createTextNode(NOMBRE_PRIO[t.prioridad] || t.prioridad));
+      cab.appendChild(p);
+    }
+    if(cab.childNodes.length) el.appendChild(cab);
+
+    var principal = document.createElement("div");
+    principal.className = "card-main";
+    var check = document.createElement("button");
+    check.type = "button";
+    check.className = "task-check" + (t.estado === "hecho" ? " checked" : "");
+    check.textContent = "";
+    check.setAttribute("aria-label", t.estado === "hecho" ? "Reabrir tarea" : "Marcar como terminada");
+    check.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      mover(t.id, t.estado === "hecho" ? "pendiente" : "hecho", null);
+    });
+    principal.appendChild(check);
+    var textoCard = document.createElement("div");
+    textoCard.className = "card-copy";
+    var h = document.createElement("div");
+    h.className = "title";
+    h.textContent = t.titulo;
+    textoCard.appendChild(h);
+    if(t.notas){
+      var nota = document.createElement("div");
+      nota.className = "card-note";
+      nota.textContent = t.notas;
+      textoCard.appendChild(nota);
+    }
+    principal.appendChild(textoCard);
+    el.appendChild(principal);
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+
     if(t.fecha){
       var f = etiquetaFecha(t.fecha);
       var d = document.createElement("span");
@@ -1570,12 +1730,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
                  duracion(t.estimadoMin * HOLGURA * 60000) + " de tiempo despierto";
       meta.appendChild(ca);
     }
-    if(t.prioridad){
-      var p = document.createElement("span");
-      p.className = "prio " + t.prioridad;
-      p.innerHTML = '<i></i>';
-      p.appendChild(document.createTextNode(NOMBRE_PRIO[t.prioridad] || t.prioridad));
-      meta.appendChild(p);
+    if(t.estimadoMin){
+      var est = document.createElement("span");
+      est.className = "estimate";
+      est.textContent = (t.estimadoMin >= 60 ? (Math.round(t.estimadoMin / 6) / 10) + "h" : t.estimadoMin + "m") + " est.";
+      est.title = "Tiempo estimado";
+      meta.appendChild(est);
     }
     // reloj del ciclo (en una ficha con subtareas, la suma de todas)
     var ms = esPadre(t) ? tiempoTotal(t) : msEnCurso(t);
@@ -1625,6 +1785,14 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       ag.title = t.meetUrl ? "Abrir la reunión en Google Meet" : "Agendada en Google Calendar";
       ag.addEventListener("click", function(ev){ ev.stopPropagation(); });
       meta.appendChild(ag);
+    } else {
+      var agendar = document.createElement("button");
+      agendar.type = "button";
+      agendar.className = "agenda agenda-accion";
+      agendar.textContent = "Calendario";
+      agendar.title = "Abrir la ficha para agendarla";
+      agendar.addEventListener("click", function(ev){ ev.stopPropagation(); abrir(t.id); });
+      meta.appendChild(agendar);
     }
 
     if(meta.childNodes.length) el.appendChild(meta);
@@ -2314,6 +2482,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
     var enCurso = visibles.filter(function(t){ return t.estado === "curso"; });
     $("p-curso").textContent = enCurso.length;
+    $("p-activa").textContent = enCurso.length ? enCurso[0].titulo : "Sin ficha activa";
 
     var corte = Date.now() - 7*86400000;
     $("p-semana").textContent = visibles.filter(function(t){
@@ -2484,6 +2653,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     var previa = Object.assign({}, t);   // estado antes del cambio, para poder corregir
     aplicarTransicion(copia, anterior, estado);
     guardar(copia);
+    seleccionarColMovil(estado);
     trasTransicion(copia, anterior, estado);
     quizaPreguntarCierre(previa, anterior, estado);
 
@@ -3105,6 +3275,34 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   $("nueva").addEventListener("click", function(){ abrir(null,"pendiente"); });
   Array.prototype.forEach.call(document.querySelectorAll("[data-add]"), function(b){
     b.addEventListener("click", function(){ abrir(null, b.dataset.add); });
+  });
+  seleccionarColMovil(columnaMovil);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-mobile-col]"), function(b){
+    b.addEventListener("click", function(){ seleccionarColMovil(b.dataset.mobileCol); });
+  });
+  function activarNavMovil(id){
+    Array.prototype.forEach.call(document.querySelectorAll(".mobile-nav button"), function(b){
+      if(b.id === id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+  }
+  $("mob-tablero").addEventListener("click", function(){
+    activarNavMovil("mob-tablero");
+    $("kanban-tabs").scrollIntoView({behavior:"smooth", block:"start"});
+  });
+  $("mob-hoy").addEventListener("click", function(){
+    activarNavMovil("mob-hoy");
+    if(!$("hoy").hidden) $("hoy").scrollIntoView({behavior:"smooth", block:"start"});
+    else { window.scrollTo({top:0, behavior:"smooth"}); toast("Conecta Google para ver tu agenda"); }
+  });
+  $("mob-nueva").addEventListener("click", function(){ $("nueva").click(); });
+  $("mob-cursos").addEventListener("click", function(){
+    activarNavMovil("mob-cursos");
+    $("cfg-agenda").click();
+  });
+  $("mob-exportar").addEventListener("click", function(){
+    activarNavMovil("mob-exportar");
+    window.scrollTo({top:0, behavior:"smooth"});
+    setTimeout(function(){ $("exportar").click(); }, 180);
   });
   ["todas","venc","pronto","sinf"].forEach(function(v){
     $("t-"+v).addEventListener("click", function(){
@@ -5048,9 +5246,22 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   // ---------- arranque ----------
   render();
   $("estado-db").textContent = "Conectando con el almacén…";
+  function actualizarBadgeSync(){
+    var texto = $("estado-db").textContent || "";
+    var badge = $("sync-badge");
+    badge.className = "sync-badge";
+    if(googleConectado){ badge.textContent = "Google conectado"; }
+    else if(/guardado/i.test(texto)){ badge.textContent = "Sincronizado"; }
+    else if(/sin almacén|no disponible/i.test(texto)){ badge.textContent = "Sin conexión"; badge.classList.add("offline"); }
+    else { badge.textContent = "Sincronizando"; badge.classList.add("syncing"); }
+  }
+  actualizarBadgeSync();
+  new MutationObserver(actualizarBadgeSync).observe($("estado-db"), {childList:true, characterData:true, subtree:true});
 
   claude.use("mcp").then(function(m){
     mcp = m || null;
+    googleConectado = !!mcp;
+    actualizarBadgeSync();
     $("reunion").hidden = !mcp;
     renderRegistro();
     renderAgenda();
