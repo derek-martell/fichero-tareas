@@ -118,7 +118,7 @@
     if(!r.ok){
       var cuerpo = null;
       try{ cuerpo = await r.json(); }catch(e){}
-      throw {code: codigoHttp(r.status, cuerpo), message: cuerpo && cuerpo.error && cuerpo.error.message};
+      throw {code: codigoHttp(r.status, cuerpo), status:r.status, message: cuerpo && cuerpo.error && cuerpo.error.message};
     }
     if(r.status === 204) return null;
     return r.json();
@@ -176,6 +176,7 @@
   var calendario = {
     create_event: async function(i){
       var b = cuerpoEvento(i);
+      if(i.id && /^[0-9a-v]{5,1024}$/.test(i.id)) b.id = i.id;
       var conMeet = !!i.addGoogleMeetUrl;
       if(conMeet){
         b.conferenceData = {createRequest: {

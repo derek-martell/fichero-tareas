@@ -92,7 +92,7 @@
       return {
         onSnapshot: function(cb){ return suscribir({ruta:ruta, tipo:"doc", cb:cb}); },
         get: function(){ return Promise.resolve(snapDoc(ruta)); },
-        set: function(obj){ return cambiar(function(t){ t[ruta] = copia(obj); }); },
+        set: function(obj, opts){ return cambiar(function(t){ t[ruta] = opts && opts.merge ? Object.assign({},t[ruta] || {},copia(obj)) : copia(obj); }); },
         update: function(obj){ return cambiar(function(t){ t[ruta] = Object.assign({}, t[ruta] || {}, copia(obj)); }); },
         delete: function(){ return cambiar(function(t){ delete t[ruta]; }); }
       };

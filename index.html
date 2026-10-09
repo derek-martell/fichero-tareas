@@ -15,6 +15,8 @@
 <script src="google.js"></script>
 <script src="shim.js"></script>
 <title>Fichero de Tareas</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="insights.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -750,15 +752,29 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   *{transition:none!important;animation:none!important}
 }
 </style>
+<link rel="stylesheet" href="desktop.css">
+<script src="insights.js"></script>
 </head>
-<body>
+<body data-workspace="tablero">
+
+<nav class="desktop-sidebar" aria-label="Espacios de trabajo">
+  <p class="sidebar-label">Tu espacio de trabajo</p>
+  <button type="button" data-workspace="tablero" aria-current="page"><span aria-hidden="true">▦</span>Tablero Kanban</button>
+  <button type="button" data-workspace="plan"><span aria-hidden="true">▤</span>Plan semanal y diario</button>
+  <button type="button" data-workspace="analitica"><span aria-hidden="true">◷</span>Analítica de tiempos</button>
+  <button type="button" data-workspace="cursos"><span aria-hidden="true">▱</span>Cursos y proyectos</button>
+  <button type="button" id="desktop-export"><span aria-hidden="true">⇩</span>Exportar</button>
+  <div class="sidebar-footer"><strong>Guardado y conexiones</strong><span id="desktop-sync">Conectando…</span></div>
+</nav>
 
 <div class="wrap">
   <header class="top">
     <div class="brand">
+      <img class="brand-logo" src="logo.svg" width="38" height="38" alt="">
       <h1>Fichero de Tareas</h1>
       <div class="brand-status"><p id="sub">Cargando…</p><span class="sync-badge syncing" id="sync-badge">Conectando</span></div>
     </div>
+    <label class="desktop-search"><span class="sr-only">Buscar tareas</span><input type="search" id="task-search" placeholder="Buscar tareas…" aria-label="Buscar tareas"></label>
     <div class="actions">
       <button class="tema" id="tema" type="button" role="switch" aria-checked="false"
               aria-label="Cambiar entre modo día y modo noche" title="Día / Noche">
@@ -780,6 +796,29 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   </header>
 
   <div id="aviso" hidden class="bar"></div>
+  <nav class="workspace-shortcuts" aria-label="Plan y tiempos">
+    <button type="button" class="btn" data-workspace="tablero">Tablero</button>
+    <button type="button" class="btn" data-workspace="plan">Plan semanal</button>
+    <button type="button" class="btn" data-workspace="analitica">Mis tiempos</button>
+  </nav>
+
+  <section class="desktop-focus" aria-labelledby="desktop-focus-title">
+    <div><h2 id="desktop-focus-title">¿Qué estás avanzando ahora mismo?</h2>
+      <p id="desktop-focus-status">Escribe una tarea, empieza y deja que el fichero cuente tu tiempo.</p></div>
+    <button type="button" class="btn-primary" id="spontaneous-task">▷ Iniciar tarea espontánea</button>
+  </section>
+  <section class="desktop-stats" aria-label="Actividad de hoy">
+    <div class="desktop-stat"><span>Por hacer</span><strong id="stat-pending">0</strong></div>
+    <div class="desktop-stat"><span>Trabajando ahora</span><strong id="stat-active">0</strong></div>
+    <div class="desktop-stat"><span>Completadas hoy</span><strong id="stat-done">0</strong></div>
+    <div class="desktop-stat"><span>Tiempo registrado hoy</span><strong id="stat-time">0m</strong><small>Sesiones con fecha · incluye las activas</small></div>
+  </section>
+  <section id="workspace-insights" hidden aria-label="Planificación y analítica"></section>
+  <section id="workspace-courses" class="workspace-courses" hidden aria-labelledby="courses-title">
+    <h2 id="courses-title">Cursos y proyectos</h2><p>Reúne las tareas de cada proyecto y accede a sus carpetas.</p>
+    <button type="button" class="btn" id="courses-settings">Ajustar cursos y agenda</button>
+    <div id="course-list" class="course-list"></div>
+  </section>
 
   <section class="hoy" id="hoy" hidden>
     <div class="hoy-cab">
@@ -842,6 +881,16 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     <section class="col" data-col="pendiente">
       <div class="col-head"><h2>Por hacer</h2><span class="count" id="c-pendiente">0</span>
         <button class="btn-ghost add" data-add="pendiente" title="Agregar a Por hacer">+</button></div>
+      <form id="quick-capture" class="quick-capture">
+        <label for="quick-title" id="quick-label">Captura rápida</label>
+        <input id="quick-title" type="text" required maxlength="220" autocomplete="off" placeholder="Escribe una tarea y presiona Enter…">
+        <div class="quick-fields">
+          <label>Proyecto o materia<input id="quick-project" list="proys" maxlength="60" placeholder="Sin proyecto"></label>
+          <label>Estimación<select id="quick-estimate"><option value="0">Sin estimar</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hora</option><option value="90">1.5 horas</option><option value="120">2 horas</option><option value="180">3 horas</option></select></label>
+          <label>Prioridad<select id="quick-priority"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>
+          <button type="submit" class="btn-primary" id="quick-submit">Añadir</button>
+        </div><p class="quick-hint" id="quick-hint">Puedes añadir notas, fecha y enlaces después.</p>
+      </form>
       <div class="stack" id="s-pendiente"></div>
     </section>
     <section class="col" data-col="curso">
@@ -852,7 +901,9 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     <section class="col" data-col="hecho">
       <div class="col-head"><h2>Hecho</h2><span class="count" id="c-hecho">0</span>
         <button class="btn-ghost add" data-add="hecho" title="Agregar a Hecho">+</button></div>
+      <div class="done-toolbar"><span>Completadas hoy</span><button type="button" class="btn-ghost" id="archive-today">Archivar vista</button></div>
       <div class="stack" id="s-hecho"></div>
+      <details class="done-archive" id="done-archive"><summary id="archive-summary">Anteriores · 0</summary><div class="stack" id="archive-stack"></div></details>
     </section>
   </main>
 
@@ -1138,6 +1189,15 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   var mcp = null;
   var googleConectado = false;
   var registrarTiempo = false;
+  var filtroTexto = "";
+  var vistaTrabajo = "tablero";
+  var plantillas = [];
+  var tareasCargadas = false, plantillasCargadas = false;
+  var colaCalendar = {};
+  var capturaEspontanea = false;
+  var archivoHoy = false;
+  var archivoAbierto = false;
+  try{ archivoHoy = localStorage.getItem("fichero-archivo-hoy") === hoyISO(); }catch(e){}
   var TZ = (window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone) || "America/Lima";
   var CAL = "Google Calendar";
 
@@ -1266,13 +1326,167 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   // ---------- persistencia ----------
   function guardar(t){
+    var previa=tareas[t.id], cambios={};
+    Object.keys(t).forEach(function(k){if(!previa || JSON.stringify(previa[k])!==JSON.stringify(t[k])) cambios[k]=t[k];});
     tareas[t.id] = t;
     render();
     if(db){
-      db.collection("tareas").doc(t.id).set(t).catch(function(e){
+      return db.collection("tareas").doc(t.id).set(cambios,{merge:true}).then(function(){ return true; }).catch(function(e){
         manejarError(e, "No se pudo guardar “"+t.titulo+"”.");
+        return false;
       });
     }
+    return Promise.resolve(false);
+  }
+
+  // Cada bloque vive junto a la tarea: funciona con Firestore y con el respaldo local.
+  // Los acumulados anteriores no se convierten en sesiones con fechas inventadas.
+  function idSesion(t, inicio){ return t.id + "-" + inicio; }
+  function sesiones(){
+    return lista().reduce(function(all,t){ return all.concat(t.sesiones || []); }, []);
+  }
+  function terminarSesion(t, fin){
+    if(!t.cursoDesde) return;
+    var inicio = t.cursoDesde;
+    var s = {
+      id: idSesion(t, inicio), tareaId:t.id, titulo:t.titulo,
+      proyecto:t.proyecto || "", subproyecto:t.subproyecto || "",
+      inicio:inicio, fin:Math.max(inicio,fin), duracionMs:Math.max(0,fin-inicio),
+      estimadoMin:t.estimadoMin || 0, eventoId:t.tramoId || "", eventoLink:t.tramoLink || "",
+      calendarEstado:t.tramoId || (registrarTiempo && mcp) ? "pendiente" : "desactivado",
+      calendarError:""
+    };
+    t.sesiones = (t.sesiones || []).filter(function(x){ return x.id !== s.id; }).concat([s]);
+  }
+  function cambiarSesion(tareaId, sid, datos){
+    var t = tareas[tareaId];
+    if(!t) return Promise.resolve(false);
+    var c = Object.assign({},t);
+    c.sesiones = (t.sesiones || []).map(function(s){ return s.id === sid ? Object.assign({},s,datos) : s; });
+    return guardar(c);
+  }
+  function duracionExacta(ms){
+    var m = Math.floor(Math.max(0,ms)/60000);
+    return m >= 60 ? Math.floor(m/60) + "h " + pad2(m%60) + "m" : m + "m";
+  }
+  function textoRegistro(t){
+    if(t.pausada) return "En pausa: no se está sumando tiempo.";
+    if(t.tramoError) return "Calendar: " + t.tramoError;
+    if(!registrarTiempo) return "Registro en Calendar desactivado. El tiempo se guarda en la tarea.";
+    if(!mcp) return "Conecta Google para registrar este bloque en Calendar.";
+    return t.tramoId ? "Bloque vinculado a Calendar · última actualización: " + (t.tramoUltimo ? fechaHora(t.tramoUltimo).slice(-5) : "al iniciar") : "Pendiente de registrar el bloque en Calendar…";
+  }
+  function reloj(ms){
+    var s = Math.floor(Math.max(0,ms)/1000);
+    return pad2(Math.floor(s/3600)) + ":" + pad2(Math.floor(s/60)%60) + ":" + pad2(s%60);
+  }
+  function milisegundosDia(inicio, fin, fecha){
+    var desde = new Date(fecha+"T00:00:00").getTime();
+    var hasta = new Date(fecha+"T00:00:00"); hasta.setDate(hasta.getDate()+1);
+    return Math.max(0,Math.min(fin,hasta.getTime())-Math.max(inicio,desde));
+  }
+  function refrescarEscritorio(){
+    var all = lista(), ahora = Date.now(), hoy = hoyISO();
+    $("stat-pending").textContent = all.filter(function(t){ return t.estado === "pendiente"; }).length;
+    var activas = all.filter(function(t){ return t.estado === "curso" && t.cursoDesde; });
+    $("stat-active").textContent = activas.length;
+    $("stat-done").textContent = all.filter(function(t){ return t.estado === "hecho" && t.completado && new Date(t.completado).toLocaleDateString("en-CA") === hoy; }).length;
+    var ms = sesiones().reduce(function(sum,s){ return sum+milisegundosDia(s.inicio,s.fin,hoy); },0);
+    activas.forEach(function(t){ ms += milisegundosDia(t.cursoDesde,ahora,hoy); });
+    $("stat-time").textContent = duracionExacta(ms);
+    $("desktop-focus-title").textContent = activas.length ? "En foco: " + activas[0].titulo : "¿Qué estás avanzando ahora mismo?";
+    $("desktop-focus-status").textContent = activas.length
+      ? (activas.length > 1 ? activas.length + " tareas registrando tiempo. " : "") + "Puedes pausar o finalizar desde su tarjeta."
+      : "Escribe una tarea, empieza y deja que el fichero cuente tu tiempo.";
+  }
+  function pausarTarea(id){
+    var t = tareas[id];
+    if(!t || t.estado !== "curso" || !t.cursoDesde) return;
+    var c = Object.assign({},t);
+    aplicarTransicion(c,"curso","pendiente");
+    c.estado = "curso"; c.pausada = true;
+    guardar(c);
+    trasTransicion(c,"curso","pendiente");
+    if(siguesId === id) cerrarSigues();
+    toast("Tiempo pausado");
+  }
+  function reanudarTarea(id){
+    var t = tareas[id];
+    if(!t || t.estado !== "curso" || t.cursoDesde) return;
+    var c = Object.assign({},t);
+    aplicarTransicion(c,"pendiente","curso");
+    guardar(c); trasTransicion(c,"pendiente","curso");
+    toast("Cronómetro reanudado");
+  }
+  async function reintentarActivo(id){
+    var t=tareas[id];
+    if(!t || !t.cursoDesde) return;
+    if(!mcp) throw new Error("Conecta Google para reintentar.");
+    if(!t.tramoId) return abrirTramo(t,t.cursoDesde);
+    try{
+      await mcp.callTool(CAL,"update_event",{eventId:t.tramoId,endTime:isoDe(new Date(Math.max(Date.now(),t.cursoDesde+1000))),timeZone:TZ,notificationLevel:"NONE"});
+      var actual=tareas[id];
+      if(actual && actual.tramoId===t.tramoId) guardar(Object.assign({},actual,{tramoError:"",tramoUltimo:Date.now()}));
+    }catch(e){var actual=tareas[id];if(actual && actual.tramoId===t.tramoId) guardar(Object.assign({},actual,{tramoError:msgErrorCal(e)}));throw e;}
+  }
+  async function crearTareaRapida(datos){
+    if(!db || !tareasCargadas) throw new Error("Espera a que termine la conexión con tus tareas.");
+    var titulo = String(datos.titulo || "").trim().slice(0,220);
+    if(!titulo) throw new Error("Escribe un título para la tarea.");
+    var estado = datos.iniciar ? "curso" : "pendiente";
+    var t = {
+      id:nuevoId(), titulo:titulo, proyecto:String(datos.proyecto || "").trim().slice(0,60),
+      subproyecto:"", padre:"", prioridad:["alta","media","baja"].indexOf(datos.prioridad) >= 0 ? datos.prioridad : "media",
+      estimadoMin:Math.max(0,Number(datos.estimadoMin)||0), estado:estado, notas:"", fecha:"", horaLimite:"",
+      fechaHacer:datos.fechaHacer || "", creado:Date.now(), orden:ordenSiguiente(estado),
+      iniciado:0, completado:0, cursoDesde:0, msEnCurso:0, pausada:false, sesiones:[],
+      tramoId:"", tramoInicio:0, tramoLink:"", tramoUltimo:0, sigueDesde:0, recordatorioId:""
+    };
+    aplicarTransicion(t,null,estado);
+    if(!await guardar(t)) throw new Error("La tarea no se pudo guardar. Revisa la conexión antes de repetir.");
+    trasTransicion(t,null,estado);
+    seleccionarColMovil(estado);
+    return t;
+  }
+
+  function reintentarSesion(sid){
+    var anterior=colaCalendar[sid] || Promise.resolve();
+    var trabajo=anterior.catch(function(){}).then(function(){return sincronizarSesion(sid);});
+    colaCalendar[sid]=trabajo;
+    trabajo.then(function(){if(colaCalendar[sid]===trabajo) delete colaCalendar[sid];},function(){if(colaCalendar[sid]===trabajo) delete colaCalendar[sid];});
+    return trabajo;
+  }
+  async function sincronizarSesion(sid){
+    var s = sesiones().find(function(x){ return x.id === sid; });
+    if(!s) throw new Error("La sesión ya no está disponible.");
+    if(!mcp) throw new Error("Conecta Google antes de reintentar.");
+    if(!await cambiarSesion(s.tareaId,s.id,{calendarEstado:"pendiente",calendarError:""})) throw new Error("No se pudo guardar el estado de la sesión.");
+    try{
+      if(s.duracionMs < 3*60000){
+        if(s.eventoId) await mcp.callTool(CAL,"delete_event",{eventId:s.eventoId,notificationLevel:"NONE"});
+        if(!await cambiarSesion(s.tareaId,s.id,{calendarEstado:"breve",eventoId:"",eventoLink:""})) throw new Error("No se pudo guardar el cierre de la sesión.");
+        return;
+      }
+      var datos = {summary:"⏱ " + s.titulo, description:"Registro de trabajo anotado por tu Fichero de Tareas.",
+        startTime:isoDe(new Date(s.inicio)),endTime:isoDe(new Date(s.fin)),timeZone:TZ,notificationLevel:"NONE"};
+      if(s.eventoId){
+        datos.eventId = s.eventoId;
+        await mcp.callTool(CAL,"update_event",datos);
+        if(!await cambiarSesion(s.tareaId,s.id,{calendarEstado:"sincronizado",calendarError:""})) throw new Error("Calendar actualizado; falta guardar la confirmación en el fichero.");
+      } else {
+        // ID estable: repetir tras una pérdida de red no crea un segundo bloque.
+        datos.id = idEventoSesion(s.id);
+        var ev;
+        try{ ev = (await mcp.callTool(CAL,"create_event",datos)).payload; }
+        catch(e){ if(e.status !== 409 && e.code !== 409) throw e; datos.eventId=datos.id; ev=(await mcp.callTool(CAL,"update_event",datos)).payload; }
+        if(!ev || !ev.id) throw new Error("Calendar no confirmó el bloque.");
+        if(!await cambiarSesion(s.tareaId,s.id,{eventoId:ev.id,eventoLink:ev.htmlLink || "",calendarEstado:"sincronizado",calendarError:""})) throw new Error("Calendar actualizado; falta guardar el enlace en el fichero.");
+      }
+    }catch(e){ await cambiarSesion(s.tareaId,s.id,{calendarEstado:"error",calendarError:e.message || msgErrorCal(e)}); throw e; }
+  }
+  function idEventoSesion(sid){
+    // Google permite base32hex (0-9,a-v); codificar evita depender de librerías.
+    return "f" + Array.prototype.map.call(sid,function(c){ return c.charCodeAt(0).toString(16).padStart(2,"0"); }).join("");
   }
   function borrar(id){
     var t = tareas[id];
@@ -1314,6 +1528,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   // ---------- filtros ----------
   function pasaFiltro(t){
+    if(filtroTexto && (t.titulo + " " + t.proyecto + " " + t.subproyecto + " " + t.notas).toLocaleLowerCase("es").indexOf(filtroTexto) < 0) return false;
     if(filtroProyecto && t.proyecto !== filtroProyecto) return false;
     if(filtroSub && t.subproyecto !== filtroSub) return false;
     if(filtroVista === "todas") return true;
@@ -1583,6 +1798,9 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     renderRegistro();
     renderFiltros();
     renderDatalist();
+    refrescarEscritorio();
+    if(window.FicheroInsights && (vistaTrabajo === "analitica" || vistaTrabajo === "plan")) window.FicheroInsights.refresh();
+    if(vistaTrabajo === "cursos") renderCursosEscritorio();
 
     // columnas
     var vacioTotal = total === 0;
@@ -1597,10 +1815,21 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       }).sort(col === "pendiente" ? ordenarPorPlazo : ordenar);
       $("c-"+col).textContent = items.length;
       $("m-"+col).textContent = items.length;
+      if(col === "hecho"){
+        var anteriores = items.filter(function(t){ return archivoHoy || !t.completado || new Date(t.completado).toLocaleDateString("en-CA") !== hoyISO(); });
+        items = items.filter(function(t){ return anteriores.indexOf(t) < 0; });
+        $("archive-stack").replaceChildren();
+        $("archive-summary").textContent = "Archivo / Anteriores · " + anteriores.length;
+        $("done-archive").hidden = !anteriores.length;
+        $("done-archive").open = archivoAbierto;
+        if(archivoAbierto) anteriores.forEach(function(t,i){ $("archive-stack").appendChild(ficha(t,i,anteriores.length)); });
+        $("archive-today").textContent = archivoHoy ? "Mostrar hoy" : "Archivar vista";
+        $("archive-today").setAttribute("aria-pressed",String(archivoHoy));
+      }
       if(!items.length && !vacioTotal){
         var e = document.createElement("div");
         e.className = "empty";
-        e.textContent = filtroVista === "todas" && !filtroProyecto ? "Sin tareas" : "Nada con este filtro";
+        e.textContent = col === "hecho" ? "Aún no hay completadas hoy a la vista" : (filtroVista === "todas" && !filtroProyecto ? "Sin tareas" : "Nada con este filtro");
         stack.appendChild(e);
       }
       function separador(txt, n, clase){
@@ -1640,7 +1869,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   function ficha(t, idx, total){
     var el = document.createElement("article");
-    el.className = "card" + (t.estado === "hecho" ? " is-done" : "");
+    el.className = "card" + (t.estado === "hecho" ? " is-done" : "") + (t.estado === "curso" ? (t.pausada ? " is-paused" : " is-active") : "");
     el.draggable = true;
     el.tabIndex = 0;
     el.dataset.id = t.id;
@@ -1743,7 +1972,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       var dc = document.createElement("span");
       dc.className = "dur corre";
       dc.dataset.dur = t.id;
-      dc.textContent = "▶ " + duracion(ms);
+      dc.textContent = (t.pausada ? "Ⅱ " : "▶ ") + duracion(ms);
       dc.title = "En curso desde " + fechaHora(t.cursoDesde || t.iniciado) +
                  (t.tramoId ? "\nAnotándose ahora en tu calendario" : "");
       meta.appendChild(dc);
@@ -1796,6 +2025,40 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     }
 
     if(meta.childNodes.length) el.appendChild(meta);
+
+    if(t.estado === "curso"){
+      var vivo = document.createElement("div"); vivo.className = "live-session";
+      var etiqueta = document.createElement("span"); etiqueta.className = "quick-hint";
+      etiqueta.textContent = t.pausada ? "En pausa · tiempo acumulado" : "Tiempo dedicado · en vivo";
+      var clock = document.createElement("strong"); clock.className = "live-clock"; clock.dataset.clock = t.id;
+      clock.textContent = reloj(msEnCurso(t));
+      vivo.appendChild(etiqueta); vivo.appendChild(clock);
+      var controles = document.createElement("div"); controles.className = "live-controls";
+      var pausa = document.createElement("button"); pausa.type = "button"; pausa.className = "btn";
+      pausa.textContent = t.pausada ? "▷ Reanudar" : "Ⅱ Pausar";
+      pausa.addEventListener("click",function(ev){ ev.stopPropagation(); t.pausada ? reanudarTarea(t.id) : pausarTarea(t.id); });
+      var finalizar = document.createElement("button"); finalizar.type = "button"; finalizar.className = "btn finish-task"; finalizar.textContent = "✓ Finalizar";
+      finalizar.addEventListener("click",function(ev){ ev.stopPropagation(); mover(t.id,"hecho",null); });
+      controles.appendChild(pausa); controles.appendChild(finalizar); vivo.appendChild(controles);
+      var sincronizado = document.createElement("p"); sincronizado.className = "session-status"; sincronizado.dataset.sessionStatus = t.id;
+      sincronizado.textContent = textoRegistro(t);
+      if(t.tramoError) sincronizado.classList.add("is-error");
+      vivo.appendChild(sincronizado);
+      if(t.tramoError && !t.pausada){
+        var reintento = document.createElement("button"); reintento.type="button"; reintento.className="btn"; reintento.textContent="Reintentar Calendar";
+        reintento.addEventListener("click",function(ev){ ev.stopPropagation(); reintento.disabled=true; reintentarActivo(t.id).catch(function(e){toast(msgErrorCal(e));}).finally(function(){reintento.disabled=false;}); });
+        vivo.appendChild(reintento);
+      }
+      el.appendChild(vivo);
+    } else if(t.estado === "pendiente"){
+      var empezar = document.createElement("button"); empezar.type = "button"; empezar.className = "task-start"; empezar.textContent = "▷ Empezar";
+      empezar.addEventListener("click",function(ev){ ev.stopPropagation(); mover(t.id,"curso",null); }); el.appendChild(empezar);
+    } else if(t.estimadoMin && msEnCurso(t)){
+      var comparacion = document.createElement("span"); comparacion.className = "done-comparison";
+      var delta = Math.round(msEnCurso(t)/60000-t.estimadoMin);
+      comparacion.textContent = duracionExacta(msEnCurso(t)) + " reales / " + duracionExacta(t.estimadoMin*60000) + " est. · " + (delta > 0 ? "+" : "") + delta + " min";
+      el.appendChild(comparacion);
+    }
 
     // mover con botones (táctil / teclado)
     var nudge = document.createElement("div");
@@ -2123,27 +2386,26 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   // Devuelve a Por hacer una ficha que se quedó en curso, cortando su tiempo en `corteMs`.
   function devolverAPorHacer(t, corteMs){
     var viva = tareas[t.id] || t;
-    if(viva.tramoId) cerrarTramo(viva, corteMs).catch(function(){
-      toast("Cerré la ficha, pero no pude recortar el bloque del calendario.");
-    });
     if(viva.recordatorioId) quitarRecordatorio(viva.recordatorioId);
     // El tiempo en curso del tablero también se corta en la última actividad.
     var copia = Object.assign({}, tareas[t.id] || t);
+    terminarSesion(copia,corteMs);
     copia.msEnCurso = (copia.msEnCurso||0) + Math.max(0, corteMs - copia.cursoDesde);
     copia.cursoDesde = 0;
     copia.sigueDesde = 0;
     copia.recordatorioId = "";
     copia.estado = "pendiente";
+    copia.pausada = false;
     copia.orden = ordenSiguiente("pendiente");
     copia.avisado = 0;
-    copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0;
     guardar(copia);
+    if(copia.tramoId) cerrarTramo(copia,corteMs).catch(function(){toast("Tiempo guardado. El bloque de Calendar quedó pendiente de corregir.");});
     toast("Devuelta a Por hacer, con el tiempo recortado");
   }
 
   // ---------- no cerrar con fichas en curso ----------
   function enCurso(){
-    return lista().filter(function(t){ return t.estado === "curso"; });
+    return lista().filter(function(t){ return t.estado === "curso" && t.cursoDesde; });
   }
   function hayEnCurso(){
     return enCurso().length > 0;
@@ -2395,7 +2657,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   async function crearRecordatorio(t){
     if(!mcp) return;
     var vivo = tareas[t.id] || t;
-    if(vivo.estado !== "curso" || vivo.recordatorioId || cerrojoRecordatorio[t.id]) return;
+    if(vivo.estado !== "curso" || !vivo.cursoDesde || vivo.recordatorioId || cerrojoRecordatorio[t.id]) return;
     cerrojoRecordatorio[t.id] = true;
     try{
       var res = await mcp.callTool(CAL, "create_event", cuerpoRecordatorio(vivo, inicioRecordatorio(vivo)));
@@ -2403,7 +2665,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       if(!ev || !ev.id) return;
       var ahora = tareas[t.id];
       // Si salió de curso mientras se creaba, el recordatorio sobra.
-      if(!ahora || ahora.estado !== "curso" || ahora.recordatorioId){
+      if(!ahora || ahora.estado !== "curso" || !ahora.cursoDesde || ahora.recordatorioId){
         quitarRecordatorio(ev.id);
         return;
       }
@@ -2455,7 +2717,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(!mcp){ caja.hidden = true; return; }
     caja.hidden = false;
     var sub = $("registro-sub");
-    var enCurso = lista().filter(function(t){ return t.estado === "curso"; });
+    var enCurso = lista().filter(function(t){ return t.estado === "curso" && t.cursoDesde; });
     var anotadas = enCurso.filter(function(t){ return t.tramoId; }).length;
     caja.className = "registro";
     if(!registrarTiempo){
@@ -2480,7 +2742,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(!visibles.length){ pace.hidden = true; return; }
     pace.hidden = false;
 
-    var enCurso = visibles.filter(function(t){ return t.estado === "curso"; });
+    var enCurso = visibles.filter(function(t){ return t.estado === "curso" && t.cursoDesde; });
     $("p-curso").textContent = enCurso.length;
     $("p-activa").textContent = enCurso.length ? enCurso[0].titulo : "Sin ficha activa";
 
@@ -2502,11 +2764,23 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   // Los contadores en vivo se refrescan sin re-dibujar el tablero.
   setInterval(function(){
+    if(document.hidden) return;
     Array.prototype.forEach.call(document.querySelectorAll("[data-dur]"), function(el){
       var t = tareas[el.dataset.dur];
-      if(t) el.textContent = "▶ " + duracion(esPadre(t) ? tiempoTotal(t) : msEnCurso(t));
+      if(t) el.textContent = (t.pausada ? "Ⅱ " : "▶ ") + duracion(esPadre(t) ? tiempoTotal(t) : msEnCurso(t));
     });
-  }, 60000);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-clock]"),function(el){
+      var t = tareas[el.dataset.clock]; if(t) el.textContent = reloj(msEnCurso(t));
+    });
+  }, 1000);
+  setInterval(function(){
+    if(document.hidden) return;
+    refrescarEscritorio();
+    if(vistaTrabajo === "analitica" && window.FicheroInsights) window.FicheroInsights.refresh();
+    if(archivoHoy){
+      try{ if(localStorage.getItem("fichero-archivo-hoy") !== hoyISO()){ archivoHoy=false; render(); } }catch(e){}
+    }
+  },60000);
 
   // El paso del tiempo cambia qué evento está en curso: el panel se entera solo.
   var firmaAgenda = null;
@@ -2625,6 +2899,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   function aplicarTransicion(copia, anterior, nuevo){
     var now = Date.now();
     if(anterior === "curso" && nuevo !== "curso"){
+      terminarSesion(copia,now);
       copia.msEnCurso = (copia.msEnCurso||0) + (copia.cursoDesde ? now - copia.cursoDesde : 0);
       copia.cursoDesde = 0;
       copia.sigueDesde = 0;
@@ -2632,6 +2907,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     }
     if(nuevo === "curso" && anterior !== "curso"){
       copia.cursoDesde = now;
+      copia.pausada = false;
+      copia.tramoError = "";
       copia.sigueDesde = 0;
       if(!copia.iniciado) copia.iniciado = now;
     }
@@ -2640,6 +2917,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     } else {
       copia.completado = 0;
     }
+    if(nuevo !== "curso") copia.pausada = false;
     return copia;
   }
 
@@ -2769,7 +3047,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(!t){ caja.hidden = true; return; }
     caja.hidden = false;
 
-    if(t.estado === "curso"){
+    if(t.estado === "curso" && t.cursoDesde){
       wrapIni.hidden = false; wrapReal.hidden = true;
       var desde = t.cursoDesde || Date.now();
       $("f-inicio").value = pad2(new Date(desde).getHours()) + ":" + pad2(new Date(desde).getMinutes());
@@ -2876,7 +3154,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
     // Corrección manual de la hora de inicio (antes de calcular la transición).
     var inicioCorregido = 0;
-    if(eraEditando && anterior === "curso" && !$("f-inicio-wrap").hidden && $("f-inicio").value){
+    if(eraEditando && anterior === "curso" && base.cursoDesde && !$("f-inicio-wrap").hidden && $("f-inicio").value){
       var ref = base.cursoDesde || Date.now();
       var nuevoIni = horaEnDia(ref, $("f-inicio").value);
       if(nuevoIni > Date.now()) nuevoIni -= 24*3600000;   // esa hora aún no llega: fue ayer
@@ -2890,7 +3168,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     aplicarTransicion(base, anterior, estado);
 
     // Corrección manual del total dedicado, cuando la ficha no está corriendo.
-    if(eraEditando && anterior !== "curso" && !$("f-real-wrap").hidden && $("f-real").value !== ""){
+    if(eraEditando && (anterior !== "curso" || base.pausada) && !$("f-real-wrap").hidden && $("f-real").value !== ""){
       var msReal = Math.round((parseFloat($("f-real").value) || 0) * 3600000);
       if(msReal >= 0) base.msEnCurso = msReal;
     }
@@ -2907,8 +3185,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
         notificationLevel: "NONE"
       }).then(function(){
         var c = Object.assign({}, tareas[base.id] || base);
-        c.tramoInicio = inicioCorregido;
-        guardar(c);
+        if(c.tramoId===base.tramoId && c.cursoDesde===inicioCorregido){c.tramoInicio = inicioCorregido;guardar(c);}
       }).catch(function(){
         toast("Cambié la ficha, pero no pude mover el inicio del bloque en el calendario.");
       });
@@ -3246,7 +3523,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       registrarTiempo: registrarTiempo, excluir: excluir, raizCursos: raizCursos
     }).catch(function(){ toast("No pude guardar esa preferencia."); });
     if(registrarTiempo){
-      var corriendo = lista().filter(function(t){ return t.estado === "curso" && !t.tramoId; });
+      var corriendo = lista().filter(function(t){ return t.estado === "curso" && t.cursoDesde && !t.tramoId; });
       conciliarTramos();
       toast(corriendo.length
         ? "Anotando; los bloques arrancan a la hora en que pusiste cada ficha En curso"
@@ -3277,7 +3554,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     b.addEventListener("click", function(){ abrir(null, b.dataset.add); });
   });
   seleccionarColMovil(columnaMovil);
-  Array.prototype.forEach.call(document.querySelectorAll("[data-mobile-col]"), function(b){
+  Array.prototype.forEach.call(document.querySelectorAll("#kanban-tabs [data-mobile-col]"), function(b){
     b.addEventListener("click", function(){ seleccionarColMovil(b.dataset.mobileCol); });
   });
   function activarNavMovil(id){
@@ -3286,16 +3563,19 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     });
   }
   $("mob-tablero").addEventListener("click", function(){
+    cambiarEspacio("tablero");
     activarNavMovil("mob-tablero");
     $("kanban-tabs").scrollIntoView({behavior:"smooth", block:"start"});
   });
   $("mob-hoy").addEventListener("click", function(){
+    cambiarEspacio("tablero");
     activarNavMovil("mob-hoy");
     if(!$("hoy").hidden) $("hoy").scrollIntoView({behavior:"smooth", block:"start"});
     else { window.scrollTo({top:0, behavior:"smooth"}); toast("Conecta Google para ver tu agenda"); }
   });
   $("mob-nueva").addEventListener("click", function(){ $("nueva").click(); });
   $("mob-cursos").addEventListener("click", function(){
+    cambiarEspacio("tablero");
     activarNavMovil("mob-cursos");
     $("cfg-agenda").click();
   });
@@ -3303,6 +3583,71 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     activarNavMovil("mob-exportar");
     window.scrollTo({top:0, behavior:"smooth"});
     setTimeout(function(){ $("exportar").click(); }, 180);
+  });
+  function cambiarEspacio(vista){
+    vistaTrabajo = ["tablero","plan","analitica","cursos"].indexOf(vista) >= 0 ? vista : "tablero";
+    document.body.dataset.workspace = vistaTrabajo;
+    $("workspace-insights").hidden = vistaTrabajo !== "plan" && vistaTrabajo !== "analitica";
+    $("workspace-courses").hidden = vistaTrabajo !== "cursos";
+    document.querySelectorAll("nav [data-workspace]").forEach(function(b){
+      if(b.dataset.workspace === vistaTrabajo) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current");
+    });
+    if(vistaTrabajo === "cursos") renderCursosEscritorio();
+    if(window.FicheroInsights && (vistaTrabajo === "plan" || vistaTrabajo === "analitica")){ window.FicheroInsights.show(vistaTrabajo); window.FicheroInsights.refresh(); }
+  }
+  function renderCursosEscritorio(){
+    var cont = $("course-list"); cont.replaceChildren();
+    var nombres = proyectos();
+    Object.keys(cursos).forEach(function(k){ var c=cursos[k]; if(c.proyecto && nombres.indexOf(c.proyecto)<0) nombres.push(c.proyecto); });
+    if(!nombres.length){ var p=document.createElement("p"); p.textContent="Al crear una tarea, escribe su proyecto o materia para reunirla aquí."; cont.appendChild(p); }
+    nombres.sort(function(a,b){return a.localeCompare(b,"es");}).forEach(function(nombre){
+      var card=document.createElement("article"); card.className="course-item";
+      var h=document.createElement("h3"); h.textContent=nombre; card.appendChild(h);
+      var ts=lista().filter(function(t){return t.proyecto===nombre;});
+      var p=document.createElement("p"); p.textContent=ts.filter(function(t){return t.estado!=="hecho";}).length+" abiertas · "+duracionExacta(ts.reduce(function(n,t){return n+msEnCurso(t);},0))+" dedicadas"; card.appendChild(p);
+      var b=document.createElement("button"); b.type="button"; b.className="btn"; b.textContent="Ver tareas";
+      b.addEventListener("click",function(){filtroProyecto=nombre;filtroSub=null;filtroVista="todas";filtroTexto="";$("task-search").value="";cambiarEspacio("tablero");render();}); card.appendChild(b);
+      var carpeta=carpetas[nombre];
+      if(carpeta && /^https:\/\//i.test(carpeta.url)){var a=document.createElement("a");a.href=carpeta.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Abrir carpeta";a.className="btn-ghost";card.appendChild(a);}
+      cont.appendChild(card);
+    });
+  }
+  document.querySelectorAll("nav [data-workspace]").forEach(function(b){ b.addEventListener("click",function(){ cambiarEspacio(b.dataset.workspace); }); });
+  $("desktop-export").addEventListener("click",function(){ $("exportar").click(); });
+  $("courses-settings").addEventListener("click",function(){ $("cfg-agenda").click(); });
+  var busquedaPendiente;
+  $("task-search").addEventListener("input",function(){
+    clearTimeout(busquedaPendiente);
+    busquedaPendiente=setTimeout(function(){ filtroTexto=$("task-search").value.trim().toLocaleLowerCase("es"); cambiarEspacio("tablero"); render(); },120);
+  });
+  document.addEventListener("keydown",function(ev){ if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase()==="k"){ev.preventDefault();$("task-search").focus();} });
+  $("done-archive").addEventListener("toggle",function(){ if(archivoAbierto!==$("done-archive").open){archivoAbierto=$("done-archive").open;render();} });
+  $("archive-today").addEventListener("click",function(){
+    archivoHoy=!archivoHoy;
+    try{localStorage.setItem("fichero-archivo-hoy",archivoHoy?hoyISO():"");}catch(e){}
+    render();
+  });
+  $("spontaneous-task").addEventListener("click",function(){
+    capturaEspontanea=true; cambiarEspacio("tablero"); seleccionarColMovil("pendiente");
+    $("quick-label").textContent="¿En qué vas a trabajar?"; $("quick-submit").textContent="Empezar";
+    $("quick-hint").textContent="Enter guarda la tarea e inicia el cronómetro. Escape vuelve a la captura normal.";
+    $("quick-title").focus();
+  });
+  function resetCaptura(){capturaEspontanea=false;$("quick-label").textContent="Captura rápida";$("quick-submit").textContent="Añadir";$("quick-hint").textContent="Puedes añadir notas, fecha y enlaces después.";}
+  $("quick-capture").addEventListener("keydown",function(e){if(e.key==="Escape") resetCaptura();});
+  $("quick-capture").addEventListener("submit",async function(e){
+    e.preventDefault(); if($("quick-submit").disabled) return;
+    $("quick-submit").disabled=true;
+    try{
+      var nueva=await crearTareaRapida({titulo:$("quick-title").value,proyecto:$("quick-project").value,
+        estimadoMin:$("quick-estimate").value,prioridad:$("quick-priority").value,iniciar:capturaEspontanea});
+      $("quick-title").value="";
+      filtroTexto="";$("task-search").value="";filtroVista="todas";
+      if(filtroProyecto && filtroProyecto!==nueva.proyecto){filtroProyecto=null;filtroSub=null;}
+      resetCaptura(); render(); toast(nueva.estado==="curso"?"Tarea guardada · cronómetro iniciado":"Tarea guardada");
+      if(nueva.estado!=="curso") $("quick-title").focus();
+    }catch(err){toast(err.message || "No se pudo guardar la tarea.");}
+    finally{$("quick-submit").disabled=false;}
   });
   ["todas","venc","pronto","sinf"].forEach(function(v){
     $("t-"+v).addEventListener("click", function(){
@@ -4790,15 +5135,22 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   // `desdeMs` permite anotar desde el inicio real, no desde el momento del clic.
   async function abrirTramo(t, desdeMs){
-    if(!mcp || !registrarTiempo || t.tramoId) return;
+    if(!t || !mcp || !registrarTiempo || t.tramoId || !t.cursoDesde || t.pausada) return;
     // Cerrojo por ficha: sin esto, la transición y la conciliación pueden
     // crear dos bloques para el mismo tramo.
     if(cerrojoTramo[t.id]) return;
     cerrojoTramo[t.id] = true;
     try{
       await crearBloqueTramo(t, desdeMs);
+    } catch(e){
+      var c=tareas[t.id];
+      if(c && c.cursoDesde===t.cursoDesde){guardar(Object.assign({},c,{tramoError:msgErrorCal(e)}));}
+      else cambiarSesion(t.id,idSesion(t,desdeMs || t.cursoDesde),{calendarEstado:"error",calendarError:msgErrorCal(e)});
+      throw e;
     } finally {
       delete cerrojoTramo[t.id];
+      var actualTramo=tareas[t.id];
+      if(actualTramo && actualTramo.cursoDesde && actualTramo.cursoDesde!==t.cursoDesde && !actualTramo.tramoId && !actualTramo.tramoError){setTimeout(conciliarTramos,0);}
     }
   }
 
@@ -4807,9 +5159,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   async function crearBloqueTramo(t, desdeMs){
     var vivo = tareas[t.id] || t;
     if(vivo.tramoId) return;   // otra llamada se adelantó
-    var ahora = new Date(desdeMs || Date.now());
+    var ahora = new Date(desdeMs || t.cursoDesde || Date.now());
     var fin = new Date(Math.max(Date.now(), ahora.getTime()) + 15*60000);
-    var res = await mcp.callTool(CAL, "create_event", {
+    var datos = {
+      id:idEventoSesion(idSesion(t,ahora.getTime())),
       summary: "⏱ " + t.titulo + (rotulo(t) ? " · " + rotulo(t) : ""),
       description: "Registro de trabajo anotado por tu Fichero de Tareas.",
       startTime: isoDe(ahora),
@@ -4818,12 +5171,25 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       availability: "AVAILABILITY_FREE",
       colorId: "8",
       overrideReminders: []
-    });
+    };
+    var res;
+    try{ res=await mcp.callTool(CAL,"create_event",datos); }
+    catch(e){ if(e.status!==409) throw e; datos.eventId=datos.id; res=await mcp.callTool(CAL,"update_event",datos); }
     var ev = res && res.payload;
-    if(!ev || !ev.id) return;
+    if(!ev || !ev.id) throw new Error("Calendar no confirmó el bloque.");
+    vivo=tareas[t.id];
+    if(!vivo){await mcp.callTool(CAL,"delete_event",{eventId:ev.id,notificationLevel:"NONE"});return;}
+    if(vivo.cursoDesde!==ahora.getTime() || vivo.estado!=="curso" || vivo.pausada){
+      var sid=idSesion(t,ahora.getTime());
+      cambiarSesion(t.id,sid,{eventoId:ev.id,eventoLink:ev.htmlLink || "",calendarEstado:"pendiente"});
+      await reintentarSesion(sid);
+      return;
+    }
     var copia = Object.assign({}, tareas[t.id] || t);
     copia.tramoId = ev.id;
     copia.tramoInicio = ahora.getTime();
+    copia.tramoLink = ev.htmlLink || "";
+    copia.tramoError = "";
     guardar(copia);
   }
 
@@ -4832,7 +5198,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     conciliarRecordatorios();
     if(!mcp || !registrarTiempo) return;
     lista().forEach(function(t){
-      if(t.estado !== "curso" || t.tramoId || cerrojoTramo[t.id]) return;
+      if(t.estado !== "curso" || !t.cursoDesde || t.pausada || t.tramoError || t.tramoId || cerrojoTramo[t.id]) return;
       abrirTramo(t, t.cursoDesde || Date.now())
         .catch(function(e){ toast("No pude anotar “" + recortar(t.titulo,28) + "”. " + msgErrorCal(e)); });
     });
@@ -4840,40 +5206,54 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
   // `finMs` cierra el bloque en un momento pasado (una ficha olvidada abierta).
   async function cerrarTramo(t, finMs){
-    if(!mcp || !t.tramoId) return;
+    if(!t.tramoId) return;
     var id = t.tramoId;
     var inicio = t.tramoInicio || Date.now();
     var fin = finMs || Date.now();
     var copia = Object.assign({}, tareas[t.id] || t);
-    copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0;
-    guardar(copia);
+    if(copia.tramoId===id){copia.tramoId = ""; copia.tramoInicio = 0; copia.tramoUltimo = 0; copia.tramoLink=""; guardar(copia);}
+    var s=(copia.sesiones || []).filter(function(x){return x.eventoId===id || x.inicio===inicio;}).pop();
+    if(s && !finMs) fin=s.fin;
+    if(!mcp){ if(s) cambiarSesion(t.id,s.id,{calendarEstado:"error",calendarError:"Conecta Google para cerrar el bloque."}); return; }
+    if(s) return reintentarSesion(s.id);
+    try{
     // Un tramo de menos de tres minutos fue un clic, no trabajo: no ensucia el calendario.
     if(fin - inicio < 3*60000){
       await mcp.callTool(CAL, "delete_event", {eventId:id, notificationLevel:"NONE"});
+      if(s) cambiarSesion(t.id,s.id,{calendarEstado:"breve",eventoId:"",eventoLink:""});
       return;
     }
     await mcp.callTool(CAL, "update_event", {
       eventId: id, endTime: isoDe(new Date(fin)), timeZone: TZ, notificationLevel: "NONE"
     });
+    if(s) cambiarSesion(t.id,s.id,{calendarEstado:"sincronizado",calendarError:""});
+    }catch(e){if(s) cambiarSesion(t.id,s.id,{calendarEstado:"error",calendarError:msgErrorCal(e)});throw e;}
   }
 
   // Mientras la pestaña está a la vista, el bloque abierto crece con el reloj.
   async function estirarTramos(){
     if(!mcp || !registrarTiempo || document.hidden) return;
-    var abiertos = lista().filter(function(t){ return t.estado === "curso" && t.tramoId; });
+    var abiertos = lista().filter(function(t){ return t.estado === "curso" && t.cursoDesde && t.tramoId; });
     for(var i = 0; i < abiertos.length; i++){
       try{
         await mcp.callTool(CAL, "update_event", {
           eventId: abiertos[i].tramoId,
-          endTime: isoDe(new Date()),
+          endTime: isoDe(new Date(Math.max(Date.now(),abiertos[i].cursoDesde+1000))),
           timeZone: TZ,
           notificationLevel: "NONE"
         });
         // Última hora en que constaba actividad real: sirve para recortar un olvido.
-        var copia = Object.assign({}, tareas[abiertos[i].id] || abiertos[i]);
-        copia.tramoUltimo = Date.now();
-        guardar(copia);
-      }catch(e){ /* se reintenta en el siguiente ciclo */ }
+        var vigente=tareas[abiertos[i].id];
+        if(vigente && vigente.cursoDesde && vigente.tramoId===abiertos[i].tramoId){
+          guardar(Object.assign({},vigente,{tramoUltimo:Date.now(),tramoError:""}));
+        } else {
+          var cerrada=sesiones().find(function(s){return s.eventoId===abiertos[i].tramoId;});
+          if(cerrada) await reintentarSesion(cerrada.id);
+        }
+      }catch(e){
+        var fallida=tareas[abiertos[i].id];
+        if(fallida && fallida.tramoId===abiertos[i].tramoId){guardar(Object.assign({},fallida,{tramoError:msgErrorCal(e)}));}
+      }
     }
   }
   setInterval(estirarTramos, 600000);
@@ -4890,12 +5270,15 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(!previa.cursoDesde) return;
     var corrido = Date.now() - previa.cursoDesde;
     if(corrido < MINIMO_PREGUNTA) return;
+    var cerrada=tareas[previa.id];
+    var sesion=cerrada && (cerrada.sesiones || []).slice(-1)[0];
     pendienteCierre = {
       id: previa.id,
       titulo: previa.titulo,
-      desde: previa.cursoDesde,
-      cerradoEn: Date.now(),
+      desde: sesion ? sesion.inicio : previa.cursoDesde,
+      cerradoEn: sesion ? sesion.fin : Date.now(),
       tramoId: previa.tramoId || "",
+      sesionId:sesion ? sesion.id : idSesion(previa,previa.cursoDesde),
       corrido: corrido
     };
     renderCierre();
@@ -4969,9 +5352,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       var copia = Object.assign({}, t);
       copia.msEnCurso = Math.max(0, (copia.msEnCurso || 0) - exceso);
       guardar(copia);
+      var corregir=cambiarSesion(t.id,p.sesionId,{fin:salida,duracionMs:Math.max(0,salida-p.desde),
+        calendarEstado:p.tramoId ? "pendiente" : ((t.sesiones || []).find(function(s){return s.id===p.sesionId;}) || {}).calendarEstado || "desactivado"});
+      if(p.tramoId && mcp){corregir.then(function(ok){if(!ok) throw new Error("No se pudo guardar la corrección.");return reintentarSesion(p.sesionId);}).catch(function(){toast("Hora corregida. Revisa el bloque pendiente en el historial.");});}
     }
     // El bloque del calendario se recorta a la misma hora.
-    if(p.tramoId && mcp){
+    if(!exceso && p.tramoId && mcp){
       mcp.callTool(CAL, "update_event", {
         eventId: p.tramoId, endTime: isoDe(new Date(salida)), timeZone: TZ, notificationLevel: "NONE"
       }).catch(function(){ toast("Ajusté la ficha, pero no el bloque del calendario."); });
@@ -4982,13 +5368,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   }
 
   function trasTransicion(t, anterior, nuevo){
-    if(!mcp) return;
-    if(nuevo === "curso" && anterior !== "curso"){
+    if(mcp && nuevo === "curso" && anterior !== "curso"){
       crearRecordatorio(t).catch(function(){
         toast("No pude programar el recordatorio de la hora en el calendario.");
       });
     }
-    if(nuevo === "curso" && anterior !== "curso" && registrarTiempo){
+    if(mcp && nuevo === "curso" && anterior !== "curso" && registrarTiempo){
       abrirTramo(t).catch(function(e){
         toast("No pude anotar el inicio en el calendario. " + msgErrorCal(e));
       });
@@ -5088,7 +5473,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
         "Horas en curso": ms > 0 ? Math.round(ms/36000)/100 : "",
         "Días creada→hecha": lead > 0 ? Math.round(lead/864000)/100 : "",
         "En calendario": t.eventoId ? (t.meetUrl ? "Reunión con Meet" : "Sí") : "",
-        Notas: t.notas || ""
+        Notas: t.notas || "",
+        "Minutos estimados": t.estimadoMin || "",
+        "Día planificado": t.fechaHacer || "",
+        "Minutos reales": Math.round(ms/600)/100,
+        "Desviación (min)": t.estimadoMin && ms ? Math.round((ms/60000-t.estimadoMin)*100)/100 : "",
+        "Sesiones registradas": (t.sesiones || []).length
       };
     });
   }
@@ -5101,16 +5491,18 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     try{
       await dl.save({filename:filename, data:data});
       toast("Archivo guardado");
+      return true;
     }catch(e){
       if(e && e.code === "declined") return;
       toast("No se pudo guardar el archivo.");
+      return false;
     }
   }
   function exportarCSV(){
     var rows = filas();
     if(!rows.length){ toast("No hay tareas que exportar todavía."); return; }
     var cols = Object.keys(rows[0]);
-    var esc = function(v){ v = String(v==null?"":v); return /[",\n;]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+    var esc = function(v){ v = String(v==null?"":v); if(typeof arguments[0] === "string" && /^[\s]*[=+@-]/.test(v)) v="'"+v; return /[",\r\n;]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
     var csv = "﻿" + cols.join(";") + "\n" +
       rows.map(function(r){ return cols.map(function(c){ return esc(r[c]); }).join(";"); }).join("\n");
     descargar(nombreArchivo("csv"), csv);
@@ -5124,6 +5516,13 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
                    {wch:17},{wch:17},{wch:17},{wch:14},{wch:17},{wch:15},{wch:44}];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Tareas");
+    if(sesiones().length){
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sesiones().map(function(s){return {
+        Tarea:s.titulo,Proyecto:s.proyecto,Inicio:fechaHora(s.inicio),Fin:fechaHora(s.fin),
+        "Minutos reales":Math.round(s.duracionMs/600)/100,"Estimación de la tarea (min)":s.estimadoMin || "",
+        Calendar:s.calendarEstado,"Enlace Calendar":s.eventoLink || ""
+      };})),"Sesiones");
+    }
     var buf = XLSX.write(wb, {bookType:"xlsx", type:"array"});
     descargar(nombreArchivo("xlsx"), buf);
   }
@@ -5202,6 +5601,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
         det.push("Prioridad " + NOMBRE_PRIO[t.prioridad||"media"].toLowerCase());
         var ms = msEnCurso(t);
         if(ms > 0) det.push(duracion(ms) + " en curso");
+        if(t.estimadoMin) det.push(duracionExacta(t.estimadoMin*60000) + " estimado");
+        if(t.estimadoMin && ms) det.push("Desviacion: " + Math.round(ms/60000-t.estimadoMin) + " min");
         if(t.eventoId) det.push(t.meetUrl ? "Reunion con Meet" : "En el calendario");
 
         doc.setFontSize(8.5).setTextColor(97,108,124);
@@ -5243,6 +5644,23 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   if(!window.XLSX) $("exp-xlsx").hidden = true;
   if(!(window.jspdf && window.jspdf.jsPDF)) $("exp-pdf").hidden = true;
 
+  // Puente entre la aplicación y las vistas: reutiliza la misma persistencia y formularios.
+  if(window.FicheroInsights) window.FicheroInsights.mount({
+    getTasks:lista,getSessions:sesiones,getTemplates:function(){return plantillas;},isReady:function(){return !!db && tareasCargadas && plantillasCargadas;},
+    saveTemplates:async function(nuevas){
+      if(!db || !plantillasCargadas) throw new Error("Espera a que termine la conexión.");
+      await db.doc("config/plantillas").set({items:nuevas}); plantillas=nuevas;
+      if(window.FicheroInsights) window.FicheroInsights.refresh();
+    },
+    createTask:crearTareaRapida,
+    planTask:async function(id,fecha){
+      if(!db || !tareas[id]) throw new Error("La tarea no está disponible.");
+      if(!await guardar(Object.assign({},tareas[id],{fechaHacer:fecha || ""}))) throw new Error("No se pudo guardar la planificación.");
+    },
+    openTask:function(id){abrir(id);},scheduleTask:function(id){abrir(id);if(!mcp) toast("Conecta Google para agendar esta tarea.");else $("f-cal").scrollIntoView({block:"nearest"});},
+    retrySession:reintentarSesion,download:async function(nombre,datos){if(!await descargar(nombre,datos)) throw new Error("No se pudo descargar el archivo.");},toast:toast,today:hoyISO,navigate:cambiarEspacio
+  });
+
   // ---------- arranque ----------
   render();
   $("estado-db").textContent = "Conectando con el almacén…";
@@ -5254,6 +5672,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     else if(/guardado/i.test(texto)){ badge.textContent = "Sincronizado"; }
     else if(/sin almacén|no disponible/i.test(texto)){ badge.textContent = "Sin conexión"; badge.classList.add("offline"); }
     else { badge.textContent = "Sincronizando"; badge.classList.add("syncing"); }
+    $("desktop-sync").textContent = texto + (googleConectado ? " · Calendar y Drive conectados" : " · Calendar y Drive sin conectar");
   }
   actualizarBadgeSync();
   new MutationObserver(actualizarBadgeSync).observe($("estado-db"), {childList:true, characterData:true, subtree:true});
@@ -5277,6 +5696,13 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       return;
     }
     db = store;
+
+    db.doc("config/plantillas").onSnapshot(function(snap){
+      var p=snap.exists ? snap.data() : null;
+      plantillas=p && Array.isArray(p.items) ? p.items : [];
+      plantillasCargadas=true;
+      if(window.FicheroInsights) window.FicheroInsights.refresh();
+    },function(){toast("No se pudieron cargar las plantillas.");});
 
     db.doc("config/cursos").onSnapshot(function(snap){
       cursos = snap.exists ? descongelar(snap.data()) : {};
@@ -5303,6 +5729,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 
     var firmaTareas = null;
     db.collection("tareas").onSnapshot(function(snap){
+      tareasCargadas=true;
       var vivos = {};
       snap.docs.forEach(function(d){
         var v = d.data() || {};
@@ -5326,6 +5753,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
           eventoFecha: String(v.eventoFecha || ""),
           meetUrl: String(v.meetUrl || ""),
           tramoId: String(v.tramoId || ""),
+          tramoLink: String(v.tramoLink || ""),
+          tramoError: String(v.tramoError || ""),
+          pausada: !!v.pausada,
+          sesiones: Array.isArray(v.sesiones) ? v.sesiones.filter(function(s){return s && s.id && Number.isFinite(s.inicio) && Number.isFinite(s.fin) && s.fin >= s.inicio;}) : [],
           tramoInicio: Number(v.tramoInicio) || 0,
           tramoUltimo: Number(v.tramoUltimo) || 0,
           avisado: Number(v.avisado) || 0,
