@@ -754,6 +754,9 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 <link rel="stylesheet" href="desktop.css">
 <script src="insights.js"></script>
+<link rel="stylesheet" href="planning.css">
+<script src="nightly.js"></script>
+<script src="planning.js"></script>
 </head>
 <body data-workspace="tablero">
 
@@ -802,6 +805,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     <button type="button" class="btn" data-workspace="analitica">Mis tiempos</button>
   </nav>
 
+  <section id="daily-planning" aria-label="Tu plan diario"></section>
   <section class="desktop-focus" aria-labelledby="desktop-focus-title">
     <div><h2 id="desktop-focus-title">¿Qué estás avanzando ahora mismo?</h2>
       <p id="desktop-focus-status">Escribe una tarea, empieza y deja que el fichero cuente tu tiempo.</p></div>
@@ -1800,6 +1804,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     renderDatalist();
     refrescarEscritorio();
     if(window.FicheroInsights && (vistaTrabajo === "analitica" || vistaTrabajo === "plan")) window.FicheroInsights.refresh();
+    if(window.FicheroPlanning) window.FicheroPlanning.refresh();
     if(vistaTrabajo === "cursos") renderCursosEscritorio();
 
     // columnas
@@ -5659,6 +5664,33 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     },
     openTask:function(id){abrir(id);},scheduleTask:function(id){abrir(id);if(!mcp) toast("Conecta Google para agendar esta tarea.");else $("f-cal").scrollIntoView({block:"nearest"});},
     retrySession:reintentarSesion,download:async function(nombre,datos){if(!await descargar(nombre,datos)) throw new Error("No se pudo descargar el archivo.");},toast:toast,today:hoyISO,navigate:cambiarEspacio
+  });
+
+  if(window.FicheroPlanning) window.FicheroPlanning.mount({
+    ready:function(){return !!db && tareasCargadas;}, tasks:lista,
+    getDay:async function(day){
+      if(!db) throw new Error("Espera a que carguen tus datos.");
+      var s=await db.doc("config/plan-"+day).get(); return s.exists ? s.data() : {};
+    },
+    saveDay:async function(day,data){
+      if(!db || !tareasCargadas) throw new Error("Espera a que carguen tus datos.");
+      await db.doc("config/plan-"+day).set(data);
+    },
+    start:function(id){
+      if(!tareas[id] || tareas[id].estado === "hecho") throw new Error("Esta tarea ya no está pendiente.");
+      if(enCurso().some(function(t){return t.id!==id && t.cursoDesde && !t.pausada;}))
+        throw new Error("Pausa primero la tarea en la que estás trabajando.");
+      if(tareas[id].estado === "curso" && tareas[id].pausada) reanudarTarea(id);
+      else if(tareas[id].estado !== "curso") mover(id,"curso");
+    },
+    openTask:abrir, toast:toast,
+    nightly:{
+      read:async function(){if(!db) throw new Error("Espera a que carguen tus datos.");var s=await db.doc("config/plan-nocturno").get();return s.exists?s.data():{};},
+      save:async function(patch){if(!db) throw new Error("Espera a que carguen tus datos.");await db.doc("config/plan-nocturno").set(patch,{merge:true});},
+      getDay:async function(day){if(!db) return {};var s=await db.doc("config/plan-"+day).get();return s.exists?s.data():{};},
+      connected:function(){return !!mcp;},
+      call:async function(tool,input){if(!mcp) throw new Error("Conecta Google para gestionar los correos.");var r=await mcp.callTool(CAL,tool,input);return r && r.payload;}
+    }
   });
 
   // ---------- arranque ----------

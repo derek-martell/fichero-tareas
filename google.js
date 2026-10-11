@@ -152,6 +152,7 @@
     }
     if(i.availability) b.transparency = i.availability === "AVAILABILITY_FREE" ? "transparent" : "opaque";
     if(i.colorId) b.colorId = String(i.colorId);
+    if(Array.isArray(i.recurrence)) b.recurrence = i.recurrence.slice();
     if(Array.isArray(i.overrideReminders)){
       b.reminders = {useDefault: false, overrides: i.overrideReminders.map(function(x){
         return {method: x.method, minutes: x.minutes};
@@ -198,6 +199,13 @@
     delete_event: async function(i){
       await api(CAL_API + "/" + encodeURIComponent(i.eventId) + qs({sendUpdates: nivel(i, false)}), {method: "DELETE"});
       return {ok: true};
+    },
+    list_event_instances: async function(i){
+      var r = await api(CAL_API + "/" + encodeURIComponent(i.eventId) + "/instances" + qs({
+        timeMin:i.startTime, timeMax:i.endTime, maxResults:i.pageSize || 100,
+        timeZone:i.timeZone, pageToken:i.pageToken
+      }));
+      return {events:(r.items || []).map(evento), nextPageToken:r.nextPageToken || null};
     },
     list_events: async function(i){
       var r = await api(CAL_API + qs({

@@ -19,6 +19,29 @@ Tablero personal de tareas y tracker de productividad, en español.
 - Completadas hoy y archivo visual reversible: archivar no elimina tareas ni limita las exportaciones.
 - Plan semanal, asignación de días y plantillas personalizables que crean tareas guardadas.
 - Analítica semanal por proyecto, estimado frente a real e historial de sesiones exportable.
+- Plan diario manual: elegir tareas para mañana, ordenar y definir bloques de tiempo.
+- Recordatorio nocturno opcional por correo de Google Calendar a las 20, 21, 22 y 23 h (Lima).
+
+## Preparar mañana
+
+Pulsa «Preparar mañana», añade tus tareas y usa «Subir/Bajar» para elegir la secuencia.
+La primera será «Empezar por aquí». Declara las horas disponibles y los minutos que
+dedicarás a cada tarea; el resumen avisa si la carga supera tu capacidad. «Sugerir orden»
+es opcional: vence antes primero, con prioridad como desempate. No modifica el orden
+del Kanban, vencimientos, asignaciones semanales ni crea bloques de trabajo en Calendar.
+La secuencia diaria se guarda por separado; al terminar una ficha pasa al siguiente paso.
+
+En «Recordatorio nocturno por correo», conecta Google y activa los avisos. Se crean
+cuatro series diarias de cinco minutos, marcadas como libres, con correo y popup de
+Calendar. Los envía Google aunque la página esté cerrada. Su enlace abre
+`#planificar-manana`; puede requerir iniciar sesión. No se añaden servicios ni secretos.
+Guardar el plan o «Hoy no voy a planificar» cancela las instancias futuras de esa noche,
+no las de noches posteriores. Responder al correo no cuenta como guardar el plan.
+
+Cancelar requiere Google conectado. Si falla, la decisión se conserva y la cancelación
+queda pendiente de reintento; pueden llegar avisos hasta completarla. Cerrar el formulario
+no confirma ninguna decisión. «Desactivar correos» elimina solo estas cuatro series.
+La zona del recordatorio siempre es America/Lima, aunque el navegador use otra zona.
 
 ## Tiempos y planificación
 
@@ -51,6 +74,8 @@ no es un servicio ejecutándose en segundo plano con el navegador cerrado.
 - `index.html`: tablero, formularios, tareas, sesiones y conexión entre las vistas.
 - `desktop.css`: presentación de escritorio y ajustes compartidos con móvil.
 - `insights.js` / `insights.css`: analítica, planificación, plantillas y exportación de sesiones.
+- `planning.js` / `planning.css`: plan diario manual y primer paso del día.
+- `nightly.js`: recordatorios recurrentes y cancelación nocturna con reintentos.
 - `logo.svg`: icono vectorial local.
 - `google.js`: adaptador de Calendar, Meet y Drive.
 - `shim.js`: almacenamiento por usuario y descargas.
@@ -58,6 +83,8 @@ no es un servicio ejecutándose en segundo plano con el navegador cerrado.
 ## Comprobaciones locales
 
 `node tests/check-syntax.cjs` comprueba sintaxis, IDs y recursos relativos.
+`node --test tests/nightly.cjs` prueba las recurrencias y cancelaciones con un Calendar simulado.
+`tests/planning_smoke.py URL_LOCAL` prueba elección, orden, persistencia, enlaces y móvil.
 `tests/desktop_smoke.py` usa Playwright ya instalado y un servidor HTTP local; bloquea
 Firebase y simula Calendar con datos aislados. Comprueba captura, persistencia,
 pausa/reanudación, archivo, plantillas, planificación, exportaciones reales y tamaños

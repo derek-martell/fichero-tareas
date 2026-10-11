@@ -1,0 +1,27 @@
+#daily-planning { border:1px solid var(--line); border-radius:14px; padding:18px; background:var(--surface); margin:16px 0; font-size:16px; }
+#daily-planning .dp-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+#daily-planning h2, .dp-dialog h2 { font-size:22px; margin:0; line-height:1.3; }
+#daily-planning h3 { margin:6px 0 12px; font-size:20px; overflow-wrap:anywhere; }
+#daily-planning button, #daily-planning summary, .dp-dialog button, .dp-dialog input { min-height:44px; font:inherit; }
+#daily-planning summary { cursor:pointer; padding:10px 0; }
+#daily-planning .dp-settings { border-top:1px solid var(--line); margin-top:14px; }
+#daily-planning .dp-settings button { margin:4px 6px 4px 0; }
+.dp-note { color:var(--muted); line-height:1.5; overflow-wrap:anywhere; }
+.dp-status { line-height:1.5; overflow-wrap:anywhere; }
+.dp-status:empty { display:none; }
+.dp-error { color:var(--danger); }
+.dp-dialog { width:min(720px, calc(100% - 24px)); max-height:85dvh; box-sizing:border-box; overflow:auto; padding:24px; border:1px solid var(--line); border-radius:16px; background:var(--surface); color:var(--ink); font:16px/1.5 'IBM Plex Sans',system-ui,sans-serif; }
+.dp-dialog::backdrop { background:rgba(0,0,0,.45); }
+.dp-dialog *, .dp-dialog *::before, .dp-dialog *::after { box-sizing:border-box; }
+.dp-dialog .dp-field { display:flex; flex-direction:column; gap:6px; margin:10px 0; }
+.dp-dialog input { width:100%; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:7px; background:var(--surface-2); color:var(--ink); }
+.dp-dialog .dp-queue { padding-left:24px; }
+.dp-item { padding:14px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.dp-item:first-child strong { color:var(--accent); }
+.dp-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.dp-candidates { max-height:280px; overflow-y:auto; margin-top:12px; }
+.dp-candidate { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+.dp-candidate span { min-width:0; overflow-wrap:anywhere; }
+.dp-candidate button { flex-shrink:0; }
+.dp-dialog :is(button,input):focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:600px) { .dp-dialog { padding:16px; } .dp-candidate { align-items:stretch; flex-direction:column; } .dp-actions button { flex:1 1 auto; } }
