@@ -31,6 +31,14 @@ es opcional: vence antes primero, con prioridad como desempate. No modifica el o
 del Kanban, vencimientos, asignaciones semanales ni crea bloques de trabajo en Calendar.
 La secuencia diaria se guarda por separado; al terminar una ficha pasa al siguiente paso.
 
+La ruta guiada muestra tarjetas horarias para la tarea en curso, la siguiente, descansos
+y otros bloques. «Editar hoy» permite ajustar el día actual; «Ver ruta de mañana» solo
+previsualiza el siguiente día, sin iniciar tareas futuras. Los horarios se eligen manualmente
+o con «Distribuir mis bloques» desde la hora indicada, siempre en Lima. Se impiden
+solapamientos y bloques que terminan después de medianoche. Las tareas sin horario
+conservan su lugar y se muestran como «Sin horario»; los planes anteriores se mantienen.
+Los descansos son bloques del plan, no fichas ni eventos nuevos de Calendar.
+
 En «Recordatorio nocturno por correo», conecta Google y activa los avisos. Se crean
 cuatro series diarias de cinco minutos, marcadas como libres, con correo y popup de
 Calendar. Los envía Google aunque la página esté cerrada. Su enlace abre

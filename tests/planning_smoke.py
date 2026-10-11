@@ -108,9 +108,62 @@ with sync_playwright() as p:
     # El primer paso de mañana usa el cronómetro existente, no uno ficticio.
     page.clock.set_system_time(datetime(2026, 10, 11, 22, 0, tzinfo=timezone.utc))
     page.evaluate("const d=JSON.parse(localStorage.getItem('fichero-tareas:v1'));d['config/plan-2026-10-11']=%s;localStorage.setItem('fichero-tareas:v1',JSON.stringify(d));window.FicheroPlanning.refresh();" % json.dumps(saved))
-    expect(page.locator('.dp-route h3')).to_contain_text('Leer <b>sin HTML</b>')
+    expect(page.locator('.dp-route h3').first).to_contain_text('Leer <b>sin HTML</b>')
     page.locator('.dp-route').get_by_role('button', name='Empezar', exact=True).click()
     page.wait_for_function("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/a'].estado==='curso'")
+    # Datos de demostración aislados para comprobar fidelidad a la referencia.
+    page.clock.set_system_time(datetime(2026, 10, 11, 16, 12, 18, tzinfo=timezone.utc))
+    page.evaluate("""const d=JSON.parse(localStorage.getItem('fichero-tareas:v1'));
+      d['tareas/a'].titulo='Limpieza microdatos ENAHO';d['tareas/a'].cursoDesde=Date.parse('2026-10-11T10:30:00-05:00');
+      d['tareas/a'].estado='curso';d['tareas/a'].pausada=false;d['tareas/a'].proyecto='Economía';
+      d['tareas/b'].titulo='Estimación modelo VAR';d['tareas/b'].fecha='2026-10-11';d['tareas/b'].horaLimite='19:00';
+      d['tareas/c']={...d['tareas/b'],id:'c',titulo:'Lectura de elasticidades',fecha:'',prioridad:'media',proyecto:'Economía',cursoDesde:0};
+      d['config/plan-2026-10-11']={estado:'guardado',capacity:7,startTime:'10:30',items:[
+        {id:'a',minutes:100,startTime:'10:30'},{id:'b',minutes:120,startTime:'12:30'},
+        {id:'break-demo',kind:'break',title:'Almuerzo y descanso',minutes:60,startTime:'14:30'},
+        {id:'c',minutes:105,startTime:'15:30'}],orden:['a','b','break-demo','c']};
+      localStorage.setItem('fichero-tareas:v1',JSON.stringify(d));""")
+    page.reload(wait_until='networkidle')
+    expect(page.locator('.dp-block')).to_have_count(4)
+    expect(page.locator('.dp-block-active')).to_contain_text('42 min transcurridos')
+    expect(page.locator('.dp-block-next')).to_contain_text('12:30 – 14:30')
+    expect(page.locator('.dp-block-next')).to_contain_text('Vence 19:00')
+    expect(page.locator('.dp-block-break')).to_contain_text('Almuerzo y descanso')
+    expect(page.locator('.dp-block-later')).to_contain_text('Lectura de elasticidades')
+    for width in (1280, 390):
+        page.set_viewport_size({'width':width,'height':900})
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+        page.locator('#daily-planning').screenshot(path=str(OUT / ('ruta-guiada-%s.png' % width)))
+    page.evaluate("document.documentElement.dataset.theme='dark'")
+    page.locator('#daily-planning').screenshot(path=str(OUT / 'ruta-guiada-dark.png'))
+    page.evaluate("document.documentElement.dataset.theme='light'")
+    page.set_viewport_size({'width':1280,'height':900})
+    page.get_by_role('button',name='Editar hoy',exact=True).click()
+    expect(dialog.locator('.dp-item')).to_have_count(4)
+    # No se pierde un descanso al editar un plan existente; bloqueos de solapamientos.
+    dialog.locator('.dp-item input[type="time"]').nth(1).fill('11:00')
+    dialog.get_by_role('button',name='Guardar mi plan',exact=True).click()
+    expect(dialog).to_be_visible()
+    expect(dialog.locator('.dp-status')).to_contain_text('solapan')
+    dialog.locator('.dp-item input[type="time"]').nth(1).fill('12:30')
+    dialog.get_by_role('button',name='Guardar mi plan',exact=True).click()
+    expect(dialog).not_to_be_visible()
+    page.get_by_role('button',name='Preparar mañana',exact=True).click()
+    dialog.locator('.dp-candidate').filter(has_text='Estimación modelo VAR').get_by_role('button').click()
+    dialog.get_by_role('button',name='+ Añadir descanso',exact=True).click()
+    dialog.locator('.dp-candidate').filter(has_text='Lectura de elasticidades').get_by_role('button').click()
+    dialog.locator('.dp-schedule-controls input[type="time"]').fill('09:00')
+    dialog.get_by_role('button',name='Distribuir mis bloques',exact=True).click()
+    assert dialog.locator('.dp-item input[type="time"]').nth(0).input_value()=='09:00'
+    assert dialog.locator('.dp-item input[type="time"]').nth(1).input_value()=='09:30'
+    dialog.get_by_role('button',name='Guardar mi plan',exact=True).click()
+    expect(dialog).not_to_be_visible()
+    plan=page.evaluate("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['config/plan-2026-10-12']")
+    assert len(plan['items'])==3 and plan['items'][1]['kind']=='break'
+    page.get_by_role('button',name='Ver ruta de mañana',exact=True).click()
+    expect(page.locator('.dp-heading h2')).to_contain_text('mañana')
+    expect(page.locator('.dp-block-time').first).to_contain_text('09:00 – 09:30')
+    assert page.get_by_role('button',name='Empezar',exact=True).count()==0, 'No iniciar una tarea futura desde la vista previa'
     assert not errors, errors
     context.close(); browser.close()
     print('OK: plan manual, persistencia, enlace, 4 correos simulados, cancelación selectiva, primer paso con cronómetro y 390/1280; Lima con navegador Madrid.')
