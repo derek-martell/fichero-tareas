@@ -5737,7 +5737,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   });
 
   function enfoqueUsuario(){
-    if(window.FIREBASE_CONFIG && window.firebase){var user=firebase.auth().currentUser;return user ? user.uid : 'sin-sesion';}
+    if(window.FIREBASE_CONFIG && window.firebase){
+      if(!firebase.apps.length) return 'sin-sesion';
+      var user=firebase.auth().currentUser;return user ? user.uid : 'sin-sesion';
+    }
     return 'local';
   }
   window.FicheroActivity.mount({root:$("music-panel"),tasks:lista,scope:enfoqueUsuario,ready:function(){return !!db && tareasCargadas;},toast:toast,
