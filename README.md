@@ -31,6 +31,17 @@ es opcional: vence antes primero, con prioridad como desempate. No modifica el o
 del Kanban, vencimientos, asignaciones semanales ni crea bloques de trabajo en Calendar.
 La secuencia diaria se guarda por separado; al terminar una ficha pasa al siguiente paso.
 
+El contador de la ruta muestra `HH:MM:SS trabajados hoy`: suma solo las sesiones
+fechadas y el tramo activo que coinciden con el día actual en Lima. Las pausas no
+suman tiempo, y al pasar medianoche cuenta únicamente desde las 00:00. Los totales
+históricos sin fechas se conservan, pero no se atribuyen arbitrariamente a hoy.
+El tiempo restante del bloque también descuenta únicamente lo trabajado hoy.
+
+En escritorio puedes soltar una ficha principal a cualquier altura de otra columna
+para cambiar su estado, incluso sobre otra ficha. Para anidar fichas principales,
+suéltalas en el centro de otra ficha dentro de la misma columna. Las subtareas
+conservan su arrastre y el móvil conserva sus pestañas de una columna.
+
 La ruta guiada muestra tarjetas horarias para la tarea en curso, la siguiente, descansos
 y otros bloques. «Editar hoy» permite ajustar el día actual; «Ver ruta de mañana» solo
 previsualiza el siguiente día, sin iniciar tareas futuras. Los horarios se eligen manualmente

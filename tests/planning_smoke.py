@@ -125,7 +125,7 @@ with sync_playwright() as p:
       localStorage.setItem('fichero-tareas:v1',JSON.stringify(d));""")
     page.reload(wait_until='networkidle')
     expect(page.locator('.dp-block')).to_have_count(4)
-    expect(page.locator('.dp-block-active')).to_contain_text('42 min transcurridos')
+    expect(page.locator('.dp-block-active')).to_contain_text('00:42:18 trabajados hoy')
     expect(page.locator('.dp-block-next')).to_contain_text('12:30 – 14:30')
     expect(page.locator('.dp-block-next')).to_contain_text('Vence 19:00')
     expect(page.locator('.dp-block-break')).to_contain_text('Almuerzo y descanso')
@@ -164,6 +164,48 @@ with sync_playwright() as p:
     expect(page.locator('.dp-heading h2')).to_contain_text('mañana')
     expect(page.locator('.dp-block-time').first).to_contain_text('09:00 – 09:30')
     assert page.get_by_role('button',name='Empezar',exact=True).count()==0, 'No iniciar una tarea futura desde la vista previa'
+    # Solo hoy (Lima), no el total histórico: incluye sesiones cerradas y cruce de medianoche.
+    page.clock.set_fixed_time(datetime(2026,10,11,17,0,0,tzinfo=timezone.utc))
+    page.evaluate("""const d=JSON.parse(localStorage.getItem('fichero-tareas:v1'));
+      d['tareas/a'].msEnCurso=20*3600000;
+      d['tareas/a'].cursoDesde=Date.parse('2026-10-11T11:59:42-05:00');
+      d['tareas/a'].sesiones=[
+        {id:'old',inicio:Date.parse('2026-10-10T08:00:00-05:00'),fin:Date.parse('2026-10-10T12:00:00-05:00')},
+        {id:'cross',inicio:Date.parse('2026-10-10T23:50:00-05:00'),fin:Date.parse('2026-10-11T00:10:00-05:00')},
+        {id:'today',inicio:Date.parse('2026-10-11T08:00:00-05:00'),fin:Date.parse('2026-10-11T08:20:00-05:00')}];
+      localStorage.setItem('fichero-tareas:v1',JSON.stringify(d));""")
+    page.reload(wait_until='networkidle')
+    expect(page.locator('.dp-block-active')).to_contain_text('00:30:18 trabajados hoy')
+    expect(page.locator('.dp-block-active')).to_contain_text('Quedan ~1 h 10 min')
+    page.clock.set_fixed_time(datetime(2026,10,11,17,0,2,tzinfo=timezone.utc))
+    page.clock.run_for(1000)
+    expect(page.locator('.dp-block-active')).to_contain_text('00:30:20 trabajados hoy')
+    page.evaluate("""const d=JSON.parse(localStorage.getItem('fichero-tareas:v1'));
+      d['tareas/a'].sesiones.push({id:'pause',inicio:d['tareas/a'].cursoDesde,fin:Date.now()});
+      d['tareas/a'].cursoDesde=0;d['tareas/a'].pausada=true;
+      localStorage.setItem('fichero-tareas:v1',JSON.stringify(d));""")
+    page.reload(wait_until='networkidle')
+    expect(page.locator('.dp-block-paused')).to_contain_text('00:30:20 trabajados hoy · En pausa')
+    page.clock.run_for(2000)
+    expect(page.locator('.dp-block-paused')).to_contain_text('00:30:20 trabajados hoy · En pausa')
+    # Tramo activo iniciado ayer: solo la intersección de hoy; se reinicia al cambiar el día.
+    page.evaluate("""const d=JSON.parse(localStorage.getItem('fichero-tareas:v1'));
+      d['tareas/a'].cursoDesde=Date.parse('2026-10-10T23:50:00-05:00');d['tareas/a'].pausada=false;
+      d['tareas/a'].sesiones=[];localStorage.setItem('fichero-tareas:v1',JSON.stringify(d));""")
+    midnight_data=page.evaluate("localStorage.getItem('fichero-tareas:v1')")
+    midnight_context=browser.new_context(viewport={'width':1280,'height':900},timezone_id='Europe/Madrid')
+    midnight_context.route('**/*',route_request)
+    midnight_context.add_init_script("localStorage.setItem('__seed','1');localStorage.setItem('fichero-tareas:v1',%s);" % json.dumps(midnight_data))
+    page=midnight_context.new_page()
+    page.on('pageerror',lambda e: errors.append(str(e)))
+    page.clock.install(time=datetime(2026,10,11,4,59,58,tzinfo=timezone.utc))
+    page.clock.set_fixed_time(datetime(2026,10,11,4,59,58,tzinfo=timezone.utc))
+    page.goto(base,wait_until='networkidle')
+    expect(page.locator('.dp-block-active')).to_contain_text('00:09:58 trabajados hoy')
+    page.clock.set_fixed_time(datetime(2026,10,11,5,0,2,tzinfo=timezone.utc))
+    page.clock.run_for(1000)
+    expect(page.locator('.dp-block-active')).to_contain_text('00:00:02 trabajados hoy')
     assert not errors, errors
+    midnight_context.close()
     context.close(); browser.close()
     print('OK: plan manual, persistencia, enlace, 4 correos simulados, cancelación selectiva, primer paso con cronómetro y 390/1280; Lima con navegador Madrid.')

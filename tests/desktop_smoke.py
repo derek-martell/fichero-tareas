@@ -54,6 +54,97 @@ def shot(page, name):
     page.screenshot(path=str(OUT / name), full_page=True, animations='disabled')
 
 
+def kanban_drag_regression(browser, route_request, url):
+    """Arrastre nativo con ratón, en un almacén separado del resto del smoke."""
+    data = {"config/preferencias": {"registrarTiempo": False}}
+    for i in range(8):
+        value = task("drag-%d" % i, "Ficha larga %d" % i, orden=i * 20)
+        data["tareas/" + value["id"]] = value
+    data["tareas/drag-parent"] = task("drag-parent", "Padre pendiente", orden=-20)
+    data["tareas/drag-sub-a"] = task("drag-sub-a", "Primera subtarea", padre="drag-parent", orden=0)
+    data["tareas/drag-sub-b"] = task("drag-sub-b", "Segunda subtarea", padre="drag-parent", orden=20)
+    data["tareas/drag-course"] = task("drag-course", "Destino en curso", estado="curso", pausada=True)
+    data["tareas/drag-done"] = task("drag-done", "Destino hecho", estado="hecho", completado=MS)
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, timezone_id="America/Lima")
+    context.route("**/*", route_request)
+    context.add_init_script("localStorage.setItem('fichero-tareas:v1',JSON.stringify(%s));" % json.dumps(data))
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.clock.install(time=NOW)
+    try:
+        page.goto(url, wait_until="networkidle")
+        expect(page.locator('#s-pendiente > .card')).to_have_count(9)
+        heights = page.locator('#board > .col').evaluate_all('(cols)=>cols.map(c=>c.getBoundingClientRect().height)')
+        assert max(heights) - min(heights) <= 1, heights
+        overflow(page)
+        shot(page, 'kanban-aligned-1280.png')
+
+        # Mover horizontalmente una ficha baja: cabeceras fuera de pantalla,
+        # destino por debajo de la última tarjeta de la columna vecina.
+        source = page.locator('.card[data-id="drag-7"]')
+        source.evaluate('(el)=>scrollTo(0,scrollY+el.getBoundingClientRect().top-400)')
+        box = source.bounding_box()
+        dest = page.locator('.col[data-col="curso"]').bounding_box()
+        y = box['y'] + 35
+        x = dest['x'] + dest['width'] / 2
+        assert page.locator('.col[data-col="curso"] .col-head').bounding_box()['y'] < 0
+        assert page.locator('.card[data-id="drag-course"]').bounding_box()['y'] < y
+        assert page.evaluate('(p)=>document.elementFromPoint(p.x,p.y).closest(".col").dataset.col', {'x': x, 'y': y}) == 'curso'
+        page.mouse.move(box['x'] + 30, y)
+        page.mouse.down()
+        page.mouse.move(box['x'] + 45, y, steps=5)
+        page.mouse.move(x, y, steps=20)
+        page.mouse.move(x + 1, y)
+        expect(page.locator('.col[data-col="curso"]')).to_have_class('col recibe')
+        page.mouse.up()
+        expect(page.locator('#s-curso .card[data-id="drag-7"]')).to_have_count(1)
+
+        # El centro de otra tarjeta en otra columna cambia estado, sin anidar.
+        source.drag_to(page.locator('.card[data-id="drag-done"]'), source_position={'x': 20, 'y': 20})
+        expect(page.locator('#s-hecho .card[data-id="drag-7"]')).to_have_count(1)
+        moved = page.evaluate("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/drag-7']")
+        assert moved['estado'] == 'hecho' and not moved.get('padre'), moved
+        source.drag_to(page.locator('.card[data-id="drag-course"]'), source_position={'x': 20, 'y': 20})
+        expect(page.locator('#s-curso .card[data-id="drag-7"]')).to_have_count(1)
+
+        # El anidado de fichas principales en la misma columna sigue disponible.
+        page.locator('.card[data-id="drag-0"]').drag_to(page.locator('.card[data-id="drag-1"]'), source_position={'x': 20, 'y': 20})
+        page.wait_for_function("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/drag-0'].padre==='drag-1'")
+
+        # Las subtareas reordenan su lista y pueden cambiar de padre entre columnas.
+        page.locator('.card[data-id="drag-parent"] .desplegar').click()
+        page.locator('.card[data-id="drag-parent"]').evaluate('(el)=>scrollTo(0,scrollY+el.getBoundingClientRect().top-200)')
+        # Eventos de subtarea aislados: el arrastre nativo de fichas ya se probó arriba.
+        page.evaluate("""()=>{const source=document.querySelector('.sub[data-sub="drag-sub-b"]');
+          const target=document.querySelector('.sub[data-sub="drag-sub-a"]'),r=target.getBoundingClientRect(),dt=new DataTransfer();
+          source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));
+          for(const type of ['dragover','drop']) target.dispatchEvent(new DragEvent(type,{bubbles:true,cancelable:true,dataTransfer:dt,clientX:r.left+20,clientY:r.top+3}));
+          source.dispatchEvent(new DragEvent('dragend',{bubbles:true,dataTransfer:dt}));}""")
+        page.wait_for_function("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/drag-sub-b'].orden < JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/drag-sub-a'].orden")
+        expect(page.locator('.card[data-id="drag-parent"] .sub').first).to_have_attribute('data-sub', 'drag-sub-b')
+        page.evaluate("""()=>{const source=document.querySelector('.sub[data-sub="drag-sub-b"]');
+          const target=document.querySelector('.card[data-id="drag-course"]'),r=target.getBoundingClientRect(),dt=new DataTransfer();
+          source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));
+          for(const type of ['dragover','drop']) target.dispatchEvent(new DragEvent(type,{bubbles:true,cancelable:true,dataTransfer:dt,clientX:r.left+20,clientY:r.top+r.height/2}));
+          source.dispatchEvent(new DragEvent('dragend',{bubbles:true,dataTransfer:dt}));}""")
+        page.wait_for_function("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/drag-sub-b'].padre==='drag-course'")
+        assert page.evaluate("JSON.parse(localStorage.getItem('fichero-tareas:v1'))['tareas/drag-parent'].estado") == 'pendiente'
+
+        # El breakpoint móvil mantiene una sola columna y las pestañas segmentadas.
+        page.set_viewport_size({'width': 390, 'height': 844})
+        for col in ('pendiente', 'curso', 'hecho'):
+            page.locator('#kanban-tabs [data-mobile-col="%s"]' % col).click()
+            expect(page.locator('#board > .col:visible')).to_have_count(1)
+            expect(page.locator('#board > .col:visible')).to_have_attribute('data-col', col)
+            overflow(page)
+        shot(page, 'kanban-mobile-390.png')
+        assert not errors, errors
+        print('OK: arrastre horizontal inferior, sobre tarjeta, anidado, subtareas y pestañas móviles.')
+    finally:
+        context.close()
+
+
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, timeout=20000)
     context = browser.new_context(viewport={"width": 1280, "height": 900}, timezone_id="America/Lima",
@@ -93,6 +184,7 @@ with sync_playwright() as p:
         return route.continue_()
 
     context.route("**/*", route_request)
+    kanban_drag_regression(browser, route_request, sys.argv[1] if len(sys.argv)>1 else "http://127.0.0.1:8765")
     context.add_init_script("""if(!localStorage.getItem('__fixture-seeded')){
       localStorage.clear();localStorage.setItem('__fixture-seeded','1');
       localStorage.setItem('fichero-tareas:v1',JSON.stringify(%s));

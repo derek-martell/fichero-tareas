@@ -753,6 +753,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 }
 </style>
 <link rel="stylesheet" href="desktop.css">
+<style>
+/* Toda la altura del tablero acepta movimientos horizontales entre columnas. */
+@media (min-width:821px){
+  #board{align-items:stretch}
+}
+</style>
 <script src="insights.js"></script>
 <link rel="stylesheet" href="planning.css">
 <script src="nightly.js"></script>
@@ -2300,8 +2306,16 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       finArrastre();
     });
 
+    // En escritorio, cruzar de columna con una ficha principal cambia su estado.
+    // Dentro de la misma columna y al arrastrar subtareas se conserva el anidado.
+    function recibeComoColumna(){
+      var origen = tareas[arrastrandoId];
+      return window.matchMedia("(min-width:821px)").matches && origen &&
+        !origen.padre && origen.estado !== t.estado;
+    }
     // Zona central de la ficha: anidar. Bordes: reordenar (lo maneja la columna).
     el.addEventListener("dragover", function(ev){
+      if(recibeComoColumna()){ el.classList.remove("anidar"); return; }
       if(!arrastrandoId || !puedeAnidar(arrastrandoId, t.id)){ return; }
       var r = el.getBoundingClientRect();
       var rel = (ev.clientY - r.top) / Math.max(1, r.height);
@@ -2319,6 +2333,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       if(!el.contains(ev.relatedTarget)) el.classList.remove("anidar");
     });
     el.addEventListener("drop", function(ev){
+      if(recibeComoColumna()){ el.classList.remove("anidar"); return; }
       if(!el.classList.contains("anidar")) return;
       ev.preventDefault();
       ev.stopPropagation();

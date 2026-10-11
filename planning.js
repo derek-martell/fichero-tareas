@@ -7,6 +7,20 @@
   function clockTime(value) { return String(Math.floor(value/60)).padStart(2,'0')+':'+String(value%60).padStart(2,'0'); }
   function timeRange(item) { var start=timeMinutes(item.startTime); return start == null ? 'Sin horario' : item.startTime+' – '+clockTime(start+Number(item.minutes || 0)); }
   function minutesLabel(value) { var m=Math.round(value); return m>=60 ? Math.floor(m/60)+' h'+(m%60 ? ' '+m%60+' min' : '') : m+' min'; }
+  function workedToday(t, now, day) {
+    // Lima has no daylight-saving changes. Never assign undated legacy totals to today.
+    var start=Date.parse(day+'T00:00:00-05:00'), end=start+86400000;
+    function overlap(a,b) {
+      return Number.isFinite(a) && Number.isFinite(b) && b>=a ? Math.max(0,Math.min(b,end,now)-Math.max(a,start)) : 0;
+    }
+    var total=(t.sesiones || []).reduce(function(sum,s){return sum+overlap(s.inicio,s.fin);},0);
+    if(t.estado==='curso' && !t.pausada && t.cursoDesde) total+=overlap(Number(t.cursoDesde),now);
+    return total;
+  }
+  function workedClock(ms) {
+    var seconds=Math.floor(ms/1000);
+    return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(function(n){return String(n).padStart(2,'0');}).join(':');
+  }
   function isBreak(item) { return item.kind === 'break'; }
   function itemTitle(item, all) { var t=all.find(function(t){return t.id===item.id;}); return isBreak(item) ? item.title || 'Descanso' : t ? t.titulo : 'Tarea no disponible'; }
   function node(tag, text, cls) {
@@ -245,13 +259,13 @@
       top.append(time,node('span',status,'dp-block-badge'));
       var title=itemTitle(item,all), heading=node('h3',title);heading.title=title;
       var subtitle=node('p',rest ? 'Una pausa también es parte del plan' : live ? '' : complete ? 'Completada · buen trabajo' : (t.prioridad ? 'Prioridad '+t.prioridad+' · ' : '')+minutesLabel(Number(item.minutes)||0)+' previstos','dp-block-description');
-      if(live){subtitle.dataset.liveStart=t.cursoDesde; subtitle.dataset.liveMinutes=item.minutes || '';}
+      if(!previewTomorrow && (live || paused)){subtitle.dataset.workedTask=t.id;}
       var foot=node('div',null,'dp-block-meta');
       if(t){
         var control=button(live ? 'Ver tarea en curso' : complete || previewTomorrow || !isNext ? 'Ver tarea' : paused ? 'Reanudar' : 'Empezar',function(){
           action(async function(){if(live || complete || previewTomorrow || !isNext) api.openTask(t.id);else await api.start(t.id);});
         });control.classList.add('dp-block-action');
-        if(live){control.setAttribute('aria-label','Ver tarea en curso');control.dataset.remainingStart=t.cursoDesde;control.dataset.remainingMinutes=item.minutes || '';}
+        if(live){control.setAttribute('aria-label','Ver tarea en curso');control.dataset.remainingTask=t.id;control.dataset.remainingMinutes=item.minutes || '';}
         foot.append(control);
         if(isNext && t.fecha){var due=node('span',t.fecha===date ? 'Vence '+(t.horaLimite || 'hoy') : 'Vence '+t.fecha,'dp-block-due');foot.append(due);}
         else {var project=node('span',t.proyecto || 'Sin proyecto','dp-block-project');project.title=t.proyecto || 'Sin proyecto';foot.append(project);}
@@ -265,12 +279,14 @@
   }
   function tickRoute(){
     if(!ui.route) return;
-    ui.route.querySelectorAll('[data-live-start]').forEach(function(n){
-      var elapsed=Math.max(0,Math.floor((Date.now()-Number(n.dataset.liveStart))/60000));
-      n.textContent=minutesLabel(elapsed)+' transcurridos';
+    var now=Date.now(), day=dates().today, all=api.tasks();
+    ui.route.querySelectorAll('[data-worked-task]').forEach(function(n){
+      var task=all.find(function(t){return t.id===n.dataset.workedTask;});
+      if(task) n.textContent=workedClock(workedToday(task,now,day))+' trabajados hoy'+(task.pausada ? ' · En pausa' : '');
     });
-    ui.route.querySelectorAll('[data-remaining-start]').forEach(function(n){
-      var planned=Number(n.dataset.remainingMinutes),elapsed=Math.max(0,(Date.now()-Number(n.dataset.remainingStart))/60000);
+    ui.route.querySelectorAll('[data-remaining-task]').forEach(function(n){
+      var task=all.find(function(t){return t.id===n.dataset.remainingTask;}); if(!task) return;
+      var planned=Number(n.dataset.remainingMinutes),elapsed=workedToday(task,now,day)/60000;
       n.textContent=planned>0 ? elapsed<planned ? '◷ Quedan ~'+minutesLabel(Math.ceil(planned-elapsed)) : '◷ Bloque estimado superado' : '◷ Sin duración estimada';
     });
   }
