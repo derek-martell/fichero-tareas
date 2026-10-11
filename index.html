@@ -763,6 +763,10 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 <link rel="stylesheet" href="planning.css">
 <script src="nightly.js"></script>
 <script src="planning.js"></script>
+<link rel="stylesheet" href="activity.css">
+<script src="activity.js"></script>
+<link rel="stylesheet" href="pomodoro.css">
+<script src="pomodoro.js"></script>
 </head>
 <body data-workspace="tablero">
 
@@ -772,7 +776,12 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   <button type="button" data-workspace="plan"><span aria-hidden="true">▤</span>Plan semanal y diario</button>
   <button type="button" data-workspace="analitica"><span aria-hidden="true">◷</span>Analítica de tiempos</button>
   <button type="button" data-workspace="cursos"><span aria-hidden="true">▱</span>Cursos y proyectos</button>
+  <button type="button" id="music-settings"><span aria-hidden="true">♫</span>Música y enfoque</button>
   <button type="button" id="desktop-export"><span aria-hidden="true">⇩</span>Exportar</button>
+  <div class="focus-tools" id="focus-tools">
+    <section id="music-panel" aria-label="Música por actividad"></section>
+    <section id="pomodoro-panel" aria-label="Sesiones de concentración Pomodoro"></section>
+  </div>
   <div class="sidebar-footer"><strong>Guardado y conexiones</strong><span id="desktop-sync">Conectando…</span></div>
 </nav>
 
@@ -812,6 +821,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   </nav>
 
   <section id="daily-planning" aria-label="Tu plan diario"></section>
+  <div id="focus-mobile-slot" class="focus-mobile-slot"><details><summary>♫ Música y sesiones Pomodoro</summary><div id="focus-mobile-host"></div></details></div>
   <section class="desktop-focus" aria-labelledby="desktop-focus-title">
     <div><h2 id="desktop-focus-title">¿Qué estás avanzando ahora mismo?</h2>
       <p id="desktop-focus-status">Escribe una tarea, empieza y deja que el fichero cuente tu tiempo.</p></div>
@@ -967,6 +977,11 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
           <option value="baja">Baja</option>
         </select>
       </div>
+    </div>
+    <div class="field">
+      <label for="f-actividad">Tipo de actividad</label>
+      <select id="f-actividad"><option value="">Sugerir según el título</option></select>
+      <p id="f-actividad-nota" class="music-note">La categoría no depende del curso y puedes cambiarla.</p>
     </div>
     <div class="field">
       <label for="f-hacer">Planeo hacerla el</label>
@@ -1811,6 +1826,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     refrescarEscritorio();
     if(window.FicheroInsights && (vistaTrabajo === "analitica" || vistaTrabajo === "plan")) window.FicheroInsights.refresh();
     if(window.FicheroPlanning) window.FicheroPlanning.refresh();
+    if(window.FicheroActivity) window.FicheroActivity.refresh();
+    if(window.FicheroPomodoro) window.FicheroPomodoro.refresh();
     if(vistaTrabajo === "cursos") renderCursosEscritorio();
 
     // columnas
@@ -1912,6 +1929,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       cab.appendChild(p);
     }
     if(cab.childNodes.length) el.appendChild(cab);
+    if(window.FicheroActivity) el.appendChild(window.FicheroActivity.chip(t));
 
     var principal = document.createElement("div");
     principal.className = "card-main";
@@ -3094,6 +3112,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     $("f-hacer").value  = t ? (t.fechaHacer||"") : "";
     $("f-est").value    = (t && t.estimadoMin) ? (Math.round(t.estimadoMin/60*100)/100) : "";
     $("f-prio").value   = t ? (t.prioridad||"media") : "media";
+    $("f-actividad").value = t && window.FicheroActivity.valid(t.actividad) ? t.actividad : "";
+    renderActividadForm();
     $("f-estado").value = t ? t.estado : (estadoPorDefecto || "pendiente");
     $("f-notas").value  = t ? (t.notas||"") : "";
     $("f-borrar").hidden = !t;
@@ -3141,6 +3161,13 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   }
 
   $("f-hacer-hoy").addEventListener("click", function(){ $("f-hacer").value = hoyISO(); });
+  function renderActividadForm(){
+    var type=$("f-actividad").value || window.FicheroActivity.suggest($("f-titulo").value);
+    $("f-actividad-nota").textContent=$("f-actividad").value ? "Tu elección tiene prioridad sobre las sugerencias." : type==='otros' ? "Sin una sugerencia clara. Puedes elegir el tipo o dejarlo sin clasificar." : "Sugerencia: "+window.FicheroActivity.label(type)+". Puedes cambiarla.";
+  }
+  window.FicheroActivity.fillSelect($("f-actividad"));
+  $("f-titulo").addEventListener("input",renderActividadForm);
+  $("f-actividad").addEventListener("change",renderActividadForm);
   $("f-hacer-man").addEventListener("click", function(){ $("f-hacer").value = masDias(hoyISO(), 1); });
   $("f-hacer-nada").addEventListener("click", function(){ $("f-hacer").value = ""; });
 
@@ -3167,6 +3194,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     base.fechaHacer  = $("f-hacer").value || "";
     base.estimadoMin = Math.round((parseFloat($("f-est").value) || 0) * 60);
     base.prioridad   = $("f-prio").value;
+    base.actividad   = $("f-actividad").value;
     base.estado      = estado;
     base.notas       = $("f-notas").value.trim();
     var eraEditando = editando;
@@ -5708,6 +5736,23 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     }
   });
 
+  function enfoqueUsuario(){
+    if(window.FIREBASE_CONFIG && window.firebase){var user=firebase.auth().currentUser;return user ? user.uid : 'sin-sesion';}
+    return 'local';
+  }
+  window.FicheroActivity.mount({root:$("music-panel"),tasks:lista,scope:enfoqueUsuario,ready:function(){return !!db && tareasCargadas;},toast:toast,
+    save:async function(data){if(!db || !tareasCargadas)throw new Error("Espera a que carguen tus datos.");await db.doc("config/musica").set(data,{merge:true});},
+    updateTask:async function(id,type){if(!tareas[id] || !db)throw new Error("La tarea ya no está disponible.");var t=Object.assign({},tareas[id],{actividad:type});if(!await guardar(t))throw new Error("No se pudo guardar.");}
+  });
+  if(window.FicheroPomodoro) window.FicheroPomodoro.mount({root:$("pomodoro-panel"),tasks:lista,scope:enfoqueUsuario,toast:toast});
+  var focusMedia=window.matchMedia("(max-width:820px)");
+  function ubicarEnfoque(){
+    var tools=$("focus-tools");
+    if(focusMedia.matches)$("focus-mobile-host").appendChild(tools);
+    else document.querySelector('.desktop-sidebar').insertBefore(tools,document.querySelector('.sidebar-footer'));
+  }
+  ubicarEnfoque();if(focusMedia.addEventListener)focusMedia.addEventListener("change",ubicarEnfoque);
+
   // ---------- arranque ----------
   render();
   $("estado-db").textContent = "Conectando con el almacén…";
@@ -5743,6 +5788,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
       return;
     }
     db = store;
+
+    db.doc("config/musica").onSnapshot(function(snap){window.FicheroActivity.setSettings(snap.exists ? snap.data() : {});},function(){toast("No se pudieron cargar las playlists. Puedes seguir trabajando.");});
 
     db.doc("config/plantillas").onSnapshot(function(snap){
       var p=snap.exists ? snap.data() : null;
@@ -5808,6 +5855,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
           tramoUltimo: Number(v.tramoUltimo) || 0,
           avisado: Number(v.avisado) || 0,
           prioridad: (["alta","media","baja"].indexOf(v.prioridad) >= 0 ? v.prioridad : "media"),
+          actividad: window.FicheroActivity.valid(v.actividad) ? v.actividad : "",
           estado: (COLS.indexOf(v.estado) >= 0 ? v.estado : "pendiente"),
           notas: String(v.notas || ""),
           orden: Number(v.orden) || 0,

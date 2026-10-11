@@ -8,7 +8,7 @@ for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   new Function(match[1]);
   count++;
 }
-const scripts = ['google.js', 'shim.js', 'insights.js', 'planning.js', 'nightly.js'];
+const scripts = ['google.js', 'shim.js', 'insights.js', 'planning.js', 'nightly.js', 'activity.js', 'pomodoro.js'];
 for (const file of scripts) {
   new Function(fs.readFileSync(path.join(root, file), 'utf8'));
 }

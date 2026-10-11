@@ -95,6 +95,8 @@ no es un servicio ejecutándose en segundo plano con el navegador cerrado.
 - `insights.js` / `insights.css`: analítica, planificación, plantillas y exportación de sesiones.
 - `planning.js` / `planning.css`: plan diario manual y primer paso del día.
 - `nightly.js`: recordatorios recurrentes y cancelación nocturna con reintentos.
+- `activity.js` / `activity.css`: clasificación de actividad y panel de playlists (sin OAuth de Spotify todavía).
+- `pomodoro.js` / `pomodoro.css`: sesiones de concentración independientes y persistencia local por usuario.
 - `logo.svg`: icono vectorial local.
 - `google.js`: adaptador de Calendar, Meet y Drive.
 - `shim.js`: almacenamiento por usuario y descargas.
@@ -103,6 +105,9 @@ no es un servicio ejecutándose en segundo plano con el navegador cerrado.
 
 `node tests/check-syntax.cjs` comprueba sintaxis, IDs y recursos relativos.
 `node --test tests/nightly.cjs` prueba las recurrencias y cancelaciones con un Calendar simulado.
+`node --test tests/activity.cjs tests/pomodoro.cjs` comprueba clasificación, enlaces, temporizador, recuperación y aislamiento por usuario.
+`tests/activity_smoke.py URL_LOCAL` comprueba categorías, playlists guardadas y paneles en PC/móvil.
+`tests/pomodoro_smoke.py URL_LOCAL` comprueba el Pomodoro con un host y audio simulados, sin tocar tareas ni Calendar.
 `tests/planning_smoke.py URL_LOCAL` prueba elección, orden, persistencia, enlaces y móvil.
 `tests/desktop_smoke.py` usa Playwright ya instalado y un servidor HTTP local; bloquea
 Firebase y simula Calendar con datos aislados. Comprueba captura, persistencia,
@@ -111,6 +116,40 @@ pausa/reanudación, archivo, plantillas, planificación, exportaciones reales y 
 guardan en `test-results/`, excluido de Git. No se agregan paquetes al proyecto.
 
 ## Uso
+
+### Música y concentración
+
+En PC, el panel «Música y enfoque» y el Pomodoro aprovechan la parte inferior de
+la barra lateral. La barra puede desplazarse si la ventana es baja. En celular,
+abre «Música y sesiones Pomodoro»; se despliega sin tapar la navegación inferior.
+
+Las categorías son independientes del curso. Los títulos sugieren lectura,
+escritura, programación/análisis, repaso, organización o reuniones; si hay empate
+o no hay coincidencias, quedan sin clasificar. Pulsa el chip de una ficha o usa
+«Tipo de actividad» en el formulario para corregirla. Tu elección manual se
+conserva al editar el título; «Sin clasificar» también es una elección explícita.
+«Sugerir según el título» vuelve al modo automático. No se usa IA ni se escriben
+categorías automáticamente en las tareas antiguas.
+
+En «Configurar» asigna una playlist por categoría mediante su enlace o URI de
+Spotify y un nombre. Se guarda en `config/musica`, dentro de los datos del usuario.
+La tarea activa determina la playlist que muestra el panel. **Spotify todavía no
+está conectado:** «Abrir playlist» abre Spotify manualmente, no inicia ni pausa
+la reproducción. «Sin música» y «No cambiar mi música» son preferencias para la
+conexión futura; por ahora no envían órdenes. No se almacenan tokens ni secretos.
+
+Pomodoro inicia con 25 minutos de concentración, 5 de descanso corto y 15 de
+descanso largo, configurable entre 1 y 180 minutos. Tras cuatro rondas completas
+de concentración propone descanso largo. Cada nueva fase requiere pulsar iniciar;
+reiniciar u omitir no cuenta una ronda. Puedes pausar y reanudar. El vencimiento
+real se conserva al recargar, incluso si pasó con la página cerrada, sin contar
+una ronda dos veces. Se guarda localmente por cuenta, no se sincroniza entre PCs.
+El sonido es opcional y requiere la página abierta y permiso de audio del navegador;
+no se solicitan notificaciones del navegador automáticamente.
+
+El Pomodoro **no pausa el cronómetro de la tarea** ni crea registros en Calendar.
+Para no registrar un descanso como trabajo, pausa también la tarea desde su ficha.
+Los tiempos y el historial existentes no cambian.
 
 1. Entra con tu cuenta de Google. Cada persona ve solo sus propios datos.
 2. Si quieres usar Calendar y Drive, pulsa **Conectar Google** y acepta los permisos.
