@@ -767,12 +767,15 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
 <script src="activity.js"></script>
 <link rel="stylesheet" href="pomodoro.css">
 <script src="pomodoro.js"></script>
+<link rel="stylesheet" href="calendar.css">
+<script src="calendar.js"></script>
 </head>
 <body data-workspace="tablero">
 
 <nav class="desktop-sidebar" aria-label="Espacios de trabajo">
   <p class="sidebar-label">Tu espacio de trabajo</p>
   <button type="button" data-workspace="tablero" aria-current="page"><span aria-hidden="true">▦</span>Tablero Kanban</button>
+  <button type="button" data-workspace="calendario"><span aria-hidden="true">▣</span>Calendario</button>
   <button type="button" data-workspace="plan"><span aria-hidden="true">▤</span>Plan semanal y diario</button>
   <button type="button" data-workspace="analitica"><span aria-hidden="true">◷</span>Analítica de tiempos</button>
   <button type="button" data-workspace="cursos"><span aria-hidden="true">▱</span>Cursos y proyectos</button>
@@ -816,6 +819,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
   <div id="aviso" hidden class="bar"></div>
   <nav class="workspace-shortcuts" aria-label="Plan y tiempos">
     <button type="button" class="btn" data-workspace="tablero">Tablero</button>
+    <button type="button" class="btn" data-workspace="calendario">Calendario</button>
     <button type="button" class="btn" data-workspace="plan">Plan semanal</button>
     <button type="button" class="btn" data-workspace="analitica">Mis tiempos</button>
   </nav>
@@ -839,6 +843,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     <button type="button" class="btn" id="courses-settings">Ajustar cursos y agenda</button>
     <div id="course-list" class="course-list"></div>
   </section>
+  <section id="workspace-calendar" class="workspace-calendar" hidden aria-labelledby="gc-titulo"></section>
 
   <section class="hoy" id="hoy" hidden>
     <div class="hoy-cab">
@@ -1828,6 +1833,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     if(window.FicheroPlanning) window.FicheroPlanning.refresh();
     if(window.FicheroActivity) window.FicheroActivity.refresh();
     if(window.FicheroPomodoro) window.FicheroPomodoro.refresh();
+    if(window.FicheroCalendar) window.FicheroCalendar.refresh();
     if(vistaTrabajo === "cursos") renderCursosEscritorio();
 
     // columnas
@@ -3633,10 +3639,13 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     setTimeout(function(){ $("exportar").click(); }, 180);
   });
   function cambiarEspacio(vista){
-    vistaTrabajo = ["tablero","plan","analitica","cursos"].indexOf(vista) >= 0 ? vista : "tablero";
+    vistaTrabajo = ["tablero","calendario","plan","analitica","cursos"].indexOf(vista) >= 0 ? vista : "tablero";
     document.body.dataset.workspace = vistaTrabajo;
     $("workspace-insights").hidden = vistaTrabajo !== "plan" && vistaTrabajo !== "analitica";
     $("workspace-courses").hidden = vistaTrabajo !== "cursos";
+    $("workspace-calendar").hidden = vistaTrabajo !== "calendario";
+    if(window.FicheroCalendar) window.FicheroCalendar.show(vistaTrabajo === "calendario");
+    if(vistaTrabajo === "calendario") activarNavMovil(null);
     document.querySelectorAll("nav [data-workspace]").forEach(function(b){
       if(b.dataset.workspace === vistaTrabajo) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current");
     });
@@ -5748,6 +5757,8 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     updateTask:async function(id,type){if(!tareas[id] || !db)throw new Error("La tarea ya no está disponible.");var t=Object.assign({},tareas[id],{actividad:type});if(!await guardar(t))throw new Error("No se pudo guardar.");}
   });
   if(window.FicheroPomodoro) window.FicheroPomodoro.mount({root:$("pomodoro-panel"),tasks:lista,scope:enfoqueUsuario,toast:toast});
+  if(window.FicheroCalendar) window.FicheroCalendar.mount({root:$("workspace-calendar"),mcp:function(){return mcp;},
+    tasks:lista,openTask:abrir,toast:toast,today:hoyISO,timeZone:TZ});
   var focusMedia=window.matchMedia("(max-width:820px)");
   function ubicarEnfoque(){
     var tools=$("focus-tools");
@@ -5781,6 +5792,7 @@ a.drive:hover{border-color:var(--accent);color:var(--accent)}
     renderAgenda();
     if(dlg.open && editando) renderBloqueCal(tareas[editando]);
     if(mcp){ iniciarAgenda(); conciliarTramos(); setTimeout(estirarTramos, 6000); }
+    if(window.FicheroCalendar) window.FicheroCalendar.refresh();
   });
 
   claude.use("db").then(function(store){

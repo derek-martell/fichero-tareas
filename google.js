@@ -143,6 +143,7 @@
     var b = {};
     if(i.summary !== undefined) b.summary = i.summary;
     if(i.description !== undefined) b.description = i.description;
+    if(i.location !== undefined) b.location = i.location;
     if(i.allDay){
       if(i.startTime) b.start = {date: String(i.startTime).slice(0, 10)};
       if(i.endTime) b.end = {date: String(i.endTime).slice(0, 10)};
@@ -192,8 +193,16 @@
       return evento(ev);
     },
     update_event: async function(i){
+      var b = cuerpoEvento(i);
+      // PATCH mezcla objetos: al pasar de "con hora" a "todo el día" (o al revés) hay que
+      // vaciar explícitamente el campo contrario, o Google rechaza el cambio.
+      ["start", "end"].forEach(function(k){
+        if(!b[k]) return;
+        if(b[k].date){ b[k].dateTime = null; b[k].timeZone = null; }
+        else if(b[k].dateTime) b[k].date = null;
+      });
       var ev = await api(CAL_API + "/" + encodeURIComponent(i.eventId) + qs({sendUpdates: nivel(i, false)}),
-        {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpoEvento(i))});
+        {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(b)});
       return evento(ev);
     },
     delete_event: async function(i){

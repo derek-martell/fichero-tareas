@@ -38,6 +38,8 @@
 .course-item h3{margin:0 0 8px}
 .course-item button,.course-item a{min-height:44px;margin-top:10px;display:inline-flex;align-items:center}
 body[data-workspace="analitica"] .board,body[data-workspace="plan"] .board,body[data-workspace="cursos"] .board,
+body[data-workspace="calendario"] .board,body[data-workspace="calendario"] #daily-planning,
+body[data-workspace="calendario"] .focus-mobile-slot,body[data-workspace="calendario"] #hoy,
 body:not([data-workspace="tablero"]) .tally,body:not([data-workspace="tablero"]) .pace,
 body:not([data-workspace="tablero"]) .filters,body:not([data-workspace="tablero"]) .kanban-tabs,
 body:not([data-workspace="tablero"]) .desktop-focus,body:not([data-workspace="tablero"]) .desktop-stats,
@@ -120,7 +122,7 @@ body:not([data-workspace="tablero"]) .registro{display:none}
   .card-main .title{font-size:16px}
   .nudge{position:static;display:flex;justify-content:flex-end;gap:5px;margin-top:8px}
   .nudge button{min-height:44px;min-width:44px}
-  #workspace-insights,.workspace-courses{margin-top:16px}
+  #workspace-insights,.workspace-courses,.workspace-calendar{margin-top:16px}
   .quick-capture{margin:0 0 12px}
   .done-archive{margin:10px 0}
   .live-clock{font-size:25px}
