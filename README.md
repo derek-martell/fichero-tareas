@@ -13,6 +13,7 @@ Tablero personal de tareas y tracker de productividad, en español.
   del navegador y, con Google conectado, un recordatorio por correo desde Calendar.
 - Panel **Hoy** con la agenda del día, y vistas de día, semana y mes.
 - Conexión opcional con Google Calendar y Drive.
+- **Calendario** sincronizado con Google Calendar: vistas día/semana/mes, crear, editar y borrar eventos.
 - Exportación a PDF, Excel y CSV.
 - Escritorio con navegación lateral, búsqueda y captura rápida (Enter para guardar).
 - Tareas espontáneas con cronómetro por segundos y pausa/reanudación sin perder el acumulado.
@@ -62,6 +63,25 @@ queda pendiente de reintento; pueden llegar avisos hasta completarla. Cerrar el 
 no confirma ninguna decisión. «Desactivar correos» elimina solo estas cuatro series.
 La zona del recordatorio siempre es America/Lima, aunque el navegador use otra zona.
 
+## Calendario
+
+En la barra lateral (o el atajo «Calendario» en el móvil) se abre el calendario principal
+de tu cuenta de Google, con todos sus eventos, en vista de día, semana o mes.
+
+- **Crear:** pulsa «+ Evento» o haz clic en una hora libre (en el mes, en un día; doble clic
+  en «todo el día» crea un evento de día completo).
+- **Editar o borrar:** haz clic en el evento. Puedes cambiar título, fecha, horas, «Todo el
+  día», ubicación y descripción. En eventos repetidos el cambio afecta solo a esa fecha.
+  Los eventos que organiza otra persona y los de varios días con hora se muestran
+  en solo lectura, con un enlace para abrirlos en Google Calendar.
+- **Sincronización:** Google es la fuente de verdad. Lo que haces aquí se guarda en Google
+  al instante; lo que cambias en Google (o en el móvil) aparece cada minuto con la vista
+  abierta, al volver a la pestaña o con «Sincronizar».
+- «Vencimientos de fichas» muestra las fechas de vencimiento de tus tareas abiertas
+  (solo en el fichero; no crea eventos). Clic en una para abrir la ficha.
+
+Usa el permiso de Calendar que ya pide «Conectar Google»; no hace falta volver a autorizar.
+
 ## Tiempos y planificación
 
 Cada pausa, salida de «En curso» o finalización conserva una sesión con inicio, fin y
@@ -96,6 +116,7 @@ no es un servicio ejecutándose en segundo plano con el navegador cerrado.
 - `planning.js` / `planning.css`: plan diario manual y primer paso del día.
 - `nightly.js`: recordatorios recurrentes y cancelación nocturna con reintentos.
 - `activity.js` / `activity.css`: clasificación de actividad y panel de playlists (sin OAuth de Spotify todavía).
+- `calendar.js` / `calendar.css`: calendario sincronizado con Google (día, semana, mes y edición de eventos).
 - `pomodoro.js` / `pomodoro.css`: sesiones de concentración independientes y persistencia local por usuario.
 - `logo.svg`: icono vectorial local.
 - `google.js`: adaptador de Calendar, Meet y Drive.
@@ -105,6 +126,9 @@ no es un servicio ejecutándose en segundo plano con el navegador cerrado.
 
 `node tests/check-syntax.cjs` comprueba sintaxis, IDs y recursos relativos.
 `node --test tests/nightly.cjs` prueba las recurrencias y cancelaciones con un Calendar simulado.
+`node --test tests/calendar.cjs` comprueba la distribución de eventos solapados, días completos y rangos.
+`tests/calendar_smoke.py URL_LOCAL` prueba el calendario con un Google Calendar simulado: crear, editar, borrar,
+sincronizar, solo lectura y móvil (`CHROMIUM=/ruta` si Playwright no trae su navegador).
 `node --test tests/activity.cjs tests/pomodoro.cjs` comprueba clasificación, enlaces, temporizador, recuperación y aislamiento por usuario.
 `tests/activity_smoke.py URL_LOCAL` comprueba categorías, playlists guardadas y paneles en PC/móvil.
 `tests/pomodoro_smoke.py URL_LOCAL` comprueba el Pomodoro con un host y audio simulados, sin tocar tareas ni Calendar.
